@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { uploadFile } from '../supabaseHelpers';
-import { Plus, Trash2, Map, MapPin, Edit, ChevronLeft, Flag, Camera, ThermometerSun, BookOpen, Fingerprint } from 'lucide-react';
+import { Plus, Trash2, Map, MapPin, Edit, ChevronLeft, Flag, Camera, ThermometerSun, BookOpen, Fingerprint, Download } from 'lucide-react';
 import './Characters.css'; 
 
 const INITIAL_FORM_STATE = { 
@@ -26,6 +26,22 @@ const Scenarios = () => {
       const { data, error } = await supabase.from('scenarios').select('*').order('name');
       if (error) throw error;
       setScenarios(data || []);
+  const downloadFile = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename || "nexosmedia_download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      window.open(url, "_blank");
+    }
+  };
+
       if (selectedScenario) {
         const updated = (data || []).find(s => s.id === selectedScenario.id);
         if (updated) setSelectedScenario(updated);
@@ -162,6 +178,11 @@ const Scenarios = () => {
                 <button className="btn-secondary" onClick={(e) => openEditModal(selectedScenario, e)}>
                   <Edit size={16} /> Editar Registros
                 </button>
+                {selectedScenario.coverUrl && (
+                  <button className="btn-secondary" onClick={() => downloadFile(selectedScenario.coverUrl, `${selectedScenario.name}_cover.jpg`)}>
+                    <Download size={16} /> Descargar Cover
+                  </button>
+                )}
               </div>
            </div>
         </div>

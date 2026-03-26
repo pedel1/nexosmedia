@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { uploadFile } from '../supabaseHelpers';
-import { Users, MapPin, Tv, Edit, ChevronLeft, Plus, MessageSquare, Briefcase, Trash2, Camera, Smile, Video, Flame, Star, PlayCircle } from 'lucide-react';
+import { Users, MapPin, Tv, Edit, ChevronLeft, Plus, MessageSquare, Briefcase, Trash2, Camera, Smile, Video, Flame, Star, PlayCircle, Download } from 'lucide-react';
 import './Characters.css';
 
 const INITIAL_FORM_STATE = { 
@@ -198,6 +198,22 @@ const Characters = () => {
     return ch ? ch.title : "Viajero Libre";
   };
 
+  const downloadFile = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename || "nexosmedia_download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      window.open(url, "_blank");
+    }
+  };
+
   if (selectedAvatar) {
     let gal = Array.isArray(selectedAvatar.galleryUrls) ? selectedAvatar.galleryUrls : (typeof selectedAvatar.galleryUrls === 'string' ? JSON.parse(selectedAvatar.galleryUrls) : []);
     
@@ -238,6 +254,11 @@ const Characters = () => {
                 <button className="btn-secondary" onClick={(e) => openEditModal(selectedAvatar, e)}>
                   <Edit size={16} /> Editar Perfil & Prompts
                 </button>
+                {selectedAvatar.profileImage && (
+                  <button className="btn-secondary" onClick={() => downloadFile(selectedAvatar.profileImage, `${selectedAvatar.name}_perfil.jpg`)}>
+                    <Download size={16} /> Descargar Foto
+                  </button>
+                )}
               </div>
            </div>
         </div>
@@ -339,6 +360,7 @@ const Characters = () => {
                     <div style={{position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent, rgba(0,0,0,0.7))', padding:'0.5rem', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                       <span style={{fontSize:'0.7rem', color:'white'}}>Ref {i + 1}</span>
                       <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(url); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer'}}>Copiar URL</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(url, `${selectedAvatar.name}_ref_${i+1}.jpg`); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', marginLeft:'4px'}}>⬇ Descargar</button>
                     </div>
                   </div>
                 ))}
