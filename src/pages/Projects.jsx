@@ -50,7 +50,7 @@ const Projects = () => {
 
   const generateAI = async () => {
     if (!aiApiKey) return alert("Por favor, introduce tu API Key en la configuración de IA.");
-    if (!formData.script) return alert("Primero debes escribir un guion literario en la Fase 1.");
+    if (!formData.script && !formData.aiInstructions) return alert("Primero debes rellenar el Prompt General o el Guión Literario en la Fase 1.");
     setIsGeneratingAi(true);
     const targetUniverse = universes.find(u => u.id === formData.universe_id);
     const targetScenarios = scenarios.filter(s => formData.scenario_ids.includes(s.id));
@@ -88,8 +88,8 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
 - **Movimiento de Cámara (INGLÉS):** Instrucción técnica (ej: fast tracking shot, aggressive whip pan to right, handheld shaky cam).
 - **Voz en Off / Locución:** El diálogo exacto a inyectar en ElevenLabs. Si habla un personaje, EMPÁPALE de su personalidad, acérucale usando sus muletillas dadas, y que la forma sintáctica de este texto respire el ADN de su trasfondo.
 `;
-    if (formData.aiInstructions) userP += `\n[INSTRUCCIÓN DEL DIRECTOR PARA ESTE CLIP CONCRETO]: ${formData.aiInstructions}`;
-    userP += `\n\n=== GUION LITERARIO BASE A ADAPTAR ===\n${formData.script}`;
+    if (formData.aiInstructions) userP += `\n\n[PROMPT GENERAL / DIRECCIÓN CREATIVA Y HOOK VIRAL]:\n${formData.aiInstructions}\n---> ESTE ES EL GANCHO. El vídeo DEBE girar en torno a este enfoque. Es lo que ATRAE al espectador. Fusiona el contenido factual del Guión Literario con este ángulo creativo para maximizar la retención.\n`;
+    userP += `\n\n=== GUION LITERARIO (DATOS E INVESTIGACIÓN FACTUAL) ===\n${formData.script}\n\n---> INSTRUCCIÓN FINAL: Tu Master Prompt debe FUSIONAR el Guión Literario (datos puros) con el Prompt General (ángulo viral). El resultado debe ser un guion narrado POR EL PERSONAJE SELECCIONADO, con su personalidad, muletillas y forma de hablar, que presente los datos del Guión Literario desde el ángulo del Prompt General.`;
 
     try {
       let result = '';
@@ -699,13 +699,25 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                       </div>
 
                       <div className="form-group" style={{marginTop:'1.5rem'}}>
-                        <label>Prompt General / Instrucciones IA de Clip</label>
-                        <textarea rows="3" value={formData.aiInstructions} onChange={e => setFormData({...formData, aiInstructions: e.target.value})} placeholder="Master prompt para IA visual o contexto especial..." style={{border:'1px dashed var(--primary-color)'}}></textarea>
+                        <label style={{fontSize:'0.95rem', fontWeight:'bold', color:'var(--primary-color)', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                          <Target size={16}/> PROMPT GENERAL (Dirección Creativa / Hook)
+                        </label>
+                        <p style={{fontSize:'0.75rem', color:'var(--text-muted)', margin:'0.25rem 0 0.75rem 0', lineHeight:1.4}}>
+                          El contexto creativo y el gancho viral. Ej: "Vamos a hacer un vídeo sobre cómo era la economía en los Peaky Blinders". 
+                          Esto es lo que ATRAE al espectador y da el VALOR AÑADIDO al contenido puro.
+                        </p>
+                        <textarea rows="5" value={formData.aiInstructions} onChange={e => setFormData({...formData, aiInstructions: e.target.value})} placeholder="Ej: Vamos a hacer un vídeo sobre cómo era la economía en la era de los Peaky Blinders. El enfoque debe ser cómo las apuestas ilegales y el contrabando movían más dinero que los propios bancos de Birmingham..." style={{border:'2px solid var(--primary-color)', background:'rgba(255,107,0,0.03)', fontSize:'0.95rem'}}></textarea>
                       </div>
                       
-                      <div className="form-group" style={{marginTop:'1rem'}}>
-                        <label>Guion Literario (Tu Texto Base)</label>
-                        <textarea rows="6" value={formData.script} onChange={e => setFormData({...formData, script: e.target.value})} placeholder="Escribe tu guion aquí..."></textarea>
+                      <div className="form-group" style={{marginTop:'1.5rem'}}>
+                        <label style={{fontSize:'0.95rem', fontWeight:'bold', color:'var(--blue-color)', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                          <BookOpen size={16}/> GUIÓN LITERARIO (Contenido Factual / Investigación)
+                        </label>
+                        <p style={{fontSize:'0.75rem', color:'var(--text-muted)', margin:'0.25rem 0 0.75rem 0', lineHeight:1.4}}>
+                          Toda la información pura y dura: datos históricos, económicos, contexto real. 
+                          La IA fusionará esto con el Prompt General para crear un guion narrado por tu personaje.
+                        </p>
+                        <textarea rows="10" value={formData.script} onChange={e => setFormData({...formData, script: e.target.value})} placeholder="Ej: Tras la Primera Guerra Mundial, Birmingham era una ciudad industrial en decadencia. La tasa de desempleo superaba el 40%. Las fábricas de munición cerraron y miles de soldados regresaron a una ciudad sin trabajo. El mercado negro y las apuestas ilegales se convirtieron en la principal fuente de ingresos para las familias obreras de Small Heath..." style={{border:'2px solid var(--blue-color, #38bdf8)', background:'rgba(56,189,248,0.03)', fontSize:'0.95rem'}}></textarea>
                       </div>
                     </div>
 
