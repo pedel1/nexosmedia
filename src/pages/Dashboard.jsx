@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { Video, BookOpen, Scissors, Eye, CheckCircle, Bell, AlertTriangle, PlayCircle, Users, Tv, Compass, Sparkles, Activity, Flame, Star, Target, Wand2 } from 'lucide-react';
+import { Video, BookOpen, Scissors, Eye, CheckCircle, Bell, AlertTriangle, PlayCircle, Users, Tv, Compass, Sparkles, Activity, Flame, Star, Target, Wand2, Clock, FileText, Globe, MapPin } from 'lucide-react';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -9,11 +9,15 @@ const Dashboard = () => {
   const [projects, setProjects] = useState([]);
   const [channels, setChannels] = useState([]);
   const [avatars, setAvatars] = useState([]);
+  const [scenarios, setScenarios] = useState([]);
+  const [universes, setUniverses] = useState([]);
 
   useEffect(() => {
     supabase.from('projects').select('*').then(({data}) => setProjects(data || []));
     supabase.from('channels').select('*').then(({data}) => setChannels(data || []));
     supabase.from('avatars').select('*').then(({data}) => setAvatars(data || []));
+    supabase.from('scenarios').select('*').then(({data}) => setScenarios(data || []));
+    supabase.from('universes').select('*').then(({data}) => setUniverses(data || []));
   }, []);
 
   // Compute Funnel
@@ -81,6 +85,76 @@ const Dashboard = () => {
     return { ...av, tViews };
   });
   const topCharacters = charactersWithMetrics.filter(c => c.tViews > 0).sort((a,b) => b.tViews - a.tViews).slice(0, 5);
+
+  // Build Activity Feed
+  const buildActivityFeed = () => {
+    const feed = [];
+    const now = new Date();
+    const timeAgo = (dateStr) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      const diffMs = now - d;
+      const mins = Math.floor(diffMs / 60000);
+      if (mins < 1) return 'Ahora mismo';
+      if (mins < 60) return `Hace ${mins} min`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `Hace ${hrs}h`;
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return `Hace ${days}d`;
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    };
+
+    projects.forEach(p => {
+      if (p.created_at) feed.push({ type: 'project', action: 'Nuevo proyecto', name: p.title, time: p.created_at, icon: 'project', priority: p.priority });
+      if (p.updated_at && p.updated_at !== p.created_at) feed.push({ type: 'project', action: 'Proyecto actualizado', name: p.title, time: p.updated_at, icon: 'project-edit', priority: p.priority });
+    });
+    avatars.forEach(a => {
+      if (a.created_at) feed.push({ type: 'character', action: 'Nuevo personaje', name: a.name, time: a.created_at, icon: 'character', img: a.profileImage });
+      if (a.updated_at && a.updated_at !== a.created_at) feed.push({ type: 'character', action: 'Personaje editado', name: a.name, time: a.updated_at, icon: 'character-edit', img: a.profileImage });
+    });
+    channels.forEach(c => {
+      if (c.created_at) feed.push({ type: 'channel', action: 'Nuevo canal', name: c.title, time: c.created_at, icon: 'channel' });
+    });
+    scenarios.forEach(s => {
+      if (s.created_at) feed.push({ type: 'scenario', action: 'Nuevo escenario', name: s.name, time: s.created_at, icon: 'scenario' });
+    });
+    universes.forEach(u => {
+      if (u.created_at) feed.push({ type: 'universe', action: 'Nuevo universo', name: u.name, time: u.created_at, icon: 'universe' });
+    });
+
+    return feed
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 12)
+      .map(item => ({ ...item, timeLabel: timeAgo(item.time) }));
+  };
+
+  const activityFeed = buildActivityFeed();
+
+  const getActivityIcon = (icon) => {
+    switch(icon) {
+      case 'project': return <FileText size={14} color="#f97316"/>;
+      case 'project-edit': return <FileText size={14} color="#38bdf8"/>;
+      case 'character': return <Users size={14} color="#22c55e"/>;
+      case 'character-edit': return <Users size={14} color="#a78bfa"/>;
+      case 'channel': return <Tv size={14} color="#f97316"/>;
+      case 'scenario': return <MapPin size={14} color="#eab308"/>;
+      case 'universe': return <Globe size={14} color="#8b5cf6"/>;
+      default: return <Activity size={14}/>;
+    }
+  };
+
+  const getActivityColor = (icon) => {
+    switch(icon) {
+      case 'project': return 'rgba(249,115,22,0.15)';
+      case 'project-edit': return 'rgba(56,189,248,0.15)';
+      case 'character': return 'rgba(34,197,94,0.15)';
+      case 'character-edit': return 'rgba(167,139,250,0.15)';
+      case 'channel': return 'rgba(249,115,22,0.15)';
+      case 'scenario': return 'rgba(234,179,8,0.15)';
+      case 'universe': return 'rgba(139,92,246,0.15)';
+      default: return 'rgba(255,255,255,0.05)';
+    }
+  };
 
   return (
     <div className="dashboard animation-fade-in">
@@ -305,6 +379,34 @@ const Dashboard = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ACTIVIDAD RECIENTE */}
+      <div className="glass-panel" style={{marginTop:'2rem', padding:'1.5rem', border:'1px solid var(--border-color)'}}>
+        <h2 style={{fontSize:'1.1rem', display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1.5rem', color:'var(--text-primary)'}}>
+          <Clock size={20} color="var(--primary-color)"/> Actividad Reciente
+        </h2>
+        {activityFeed.length === 0 ? (
+          <p className="no-data" style={{textAlign:'center', padding:'2rem'}}>Sin actividad registrada todavía.</p>
+        ) : (
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'0.75rem'}}>
+            {activityFeed.map((item, i) => (
+              <div key={i} style={{display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.75rem 1rem', background:'var(--bg-background)', borderRadius:'10px', border:'1px solid var(--border-color)', transition:'all 0.2s ease'}}
+                   onMouseOver={e => e.currentTarget.style.borderColor='var(--primary-color)'}
+                   onMouseOut={e => e.currentTarget.style.borderColor='var(--border-color)'}>
+                <div style={{width:'34px', height:'34px', borderRadius:'50%', background: getActivityColor(item.icon), display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                  {getActivityIcon(item.icon)}
+                </div>
+                {item.img && <img src={item.img} alt="" style={{width:'28px', height:'28px', borderRadius:'50%', objectFit:'cover', flexShrink:0, border:'1px solid var(--border-color)'}}/>}
+                <div style={{flex:1, minWidth:0}}>
+                  <p style={{margin:0, fontSize:'0.85rem', color:'var(--text-primary)', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{item.name}</p>
+                  <p style={{margin:0, fontSize:'0.7rem', color:'var(--text-muted)'}}>{item.action}</p>
+                </div>
+                <span style={{fontSize:'0.65rem', color:'var(--text-muted)', flexShrink:0, whiteSpace:'nowrap'}}>{item.timeLabel}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
