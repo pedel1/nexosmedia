@@ -214,6 +214,15 @@ const Characters = () => {
     }
   };
 
+  const deleteGalleryImage = async (avatarId, imageUrl, currentGallery) => {
+    if (!window.confirm('¿Eliminar esta imagen de la galería?')) return;
+    const updatedGallery = currentGallery.filter(url => url !== imageUrl);
+    const { error } = await supabase.from('avatars').update({ galleryUrls: updatedGallery }).eq('id', avatarId);
+    if (error) { alert('Error al eliminar: ' + error.message); return; }
+    setSelectedAvatar({...selectedAvatar, galleryUrls: updatedGallery});
+    fetchAll();
+  };
+
   if (selectedAvatar) {
     let gal = Array.isArray(selectedAvatar.galleryUrls) ? selectedAvatar.galleryUrls : (typeof selectedAvatar.galleryUrls === 'string' ? JSON.parse(selectedAvatar.galleryUrls) : []);
     
@@ -264,8 +273,8 @@ const Characters = () => {
         </div>
 
 {/* LA PARTE PRINCIPAL LORE E IA */}
-        <div className="profile-grid-top">
-           <div className="profile-section-card glass-panel" style={{borderLeft: '4px solid var(--primary-color)', background: 'linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(56,189,248,0.03) 100%)'}}>
+        {/* SECCIONES PRINCIPALES */}
+           <div className="profile-section-card glass-panel" style={{marginTop: '1.5rem', borderLeft: '4px solid var(--primary-color)', background: 'linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(56,189,248,0.03) 100%)'}}>
                <h3><MessageSquare size={18} className="icon-blue"/> Comportamiento e Identidad</h3>
                <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1rem'}}>Instrucciones para ChatGPT / ElevenLabs.</p>
                <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
@@ -288,7 +297,7 @@ const Characters = () => {
                </div>
            </div>
 
-           <div className="profile-section-card glass-panel" style={{gridColumn: '1 / -1', border: '1px solid rgba(255,107,0,0.3)', background: 'linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(255,107,0,0.03) 100%)'}}>
+           <div className="profile-section-card glass-panel" style={{border: '1px solid rgba(255,107,0,0.3)', marginTop: '1.5rem', background: 'linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(255,107,0,0.03) 100%)'}}>
                <h3><Camera size={18} className="icon-orange"/> Guía de Generación Visual (Midjourney / Runway)</h3>
                <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1rem'}}>Esta sección es <strong>crítica</strong> para mantener la consistencia al renderizar al actor.</p>
                <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'1.5rem'}}>
@@ -302,7 +311,6 @@ const Characters = () => {
                  </div>
                </div>
            </div>
-        </div>
 
         <div className="profile-section-card glass-panel" style={{marginTop: '2rem'}}>
            <h3>Galería de Referencias Visuales (Seed Images)</h3>
@@ -322,6 +330,7 @@ const Characters = () => {
                       <span style={{fontSize:'0.7rem', color:'white'}}>Ref {i + 1}</span>
                       <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(url); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer'}}>Copiar URL</button>
                       <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(url, `${selectedAvatar.name}_ref_${i+1}.jpg`); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', marginLeft:'4px'}}>⬇ Descargar</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); deleteGalleryImage(selectedAvatar.id, url, gal); }} style={{fontSize:'0.65rem', background:'rgba(239,68,68,0.6)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', marginLeft:'4px'}}>✕ Borrar</button>
                     </div>
                   </div>
                 ))}
