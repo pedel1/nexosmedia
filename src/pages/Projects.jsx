@@ -141,15 +141,19 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
+      let { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+      if (error) {
+        // Retry without ordering if created_at doesn't exist
+        const retry = await supabase.from('projects').select('*');
+        data = retry.data;
+      }
       setProjects(data || []);
       if (selectedProject) {
         const updated = (data || []).find(p => p.id === selectedProject.id);
         if (updated) setSelectedProject(updated);
       }
     } catch (e) {
-      console.error(e.message);
+      console.error('fetchProjects error:', e.message);
     }
   };
 
@@ -279,37 +283,62 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
         }
       }
 
+      // Payload base — solo campos que seguro existen en la tabla
       const payload = {
         title: formData.title,
-        status: formData.status,
-        priority: formData.priority,
-        "historicalEra": formData.historicalEra,
-        "economicTopic": formData.economicTopic,
-        script: formData.script,
-        "aiInstructions": formData.aiInstructions,
-        "master_prompt_ai": formData.master_prompt_ai,
+        status: formData.status || 'Guión',
+        script: formData.script || '',
         channel_id: formData.channel_id || null,
-        universe_id: formData.universe_id || null,
-        character_ids: formData.character_ids,
-        scenario_ids: formData.scenario_ids,
-        "coverUrl": coverFin,
-        "videoUrl": videoFin,
-        
-        comments: formData.comments,
-        "content_notes": formData.content_notes,
-        "ig_story_urls": stUrls,
-        metrics: formData.metrics
       };
 
+      // Campos opcionales — se añaden solo si tienen valor, para no romper si la columna no existe
+      const optionalFields = {
+        priority: formData.priority || 'Media',
+        historicalEra: formData.historicalEra || '',
+        economicTopic: formData.economicTopic || '',
+        aiInstructions: formData.aiInstructions || '',
+        master_prompt_ai: formData.master_prompt_ai || '',
+        universe_id: formData.universe_id || null,
+        character_ids: formData.character_ids || [],
+        scenario_ids: formData.scenario_ids || [],
+        coverUrl: coverFin || null,
+        videoUrl: videoFin || null,
+        comments: formData.comments || '',
+        content_notes: formData.content_notes || '',
+        ig_story_urls: stUrls,
+        metrics: formData.metrics || { views: 0, likes: 0 },
+      };
+      Object.assign(payload, optionalFields);
+
+      let result;
       if (formData.id) {
-        await supabase.from('projects').update(payload).eq('id', formData.id);
+        result = await supabase.from('projects').update(payload).eq('id', formData.id);
       } else {
-        await supabase.from('projects').insert([payload]);
+        result = await supabase.from('projects').insert([payload]);
+      }
+      
+      // Si falla (ej: columna no existe), reintentar con payload mínimo
+      if (result.error) {
+        console.warn('Full payload failed, retrying with minimal:', result.error.message);
+        const minPayload = { title: formData.title, status: formData.status || 'Guión', script: formData.script || '', channel_id: formData.channel_id || null };
+        let retry;
+        if (formData.id) {
+          retry = await supabase.from('projects').update(minPayload).eq('id', formData.id);
+        } else {
+          retry = await supabase.from('projects').insert([minPayload]);
+        }
+        if (retry.error) {
+          console.error('Minimal save also failed:', retry.error);
+          alert("Error de Supabase: " + retry.error.message + "\n\nEjecuta el SQL fix_projects_columns.sql en tu Supabase Dashboard.");
+          return;
+        }
+        alert("Proyecto guardado (modo básico). Para guardar todos los campos, ejecuta fix_projects_columns.sql en Supabase.");
       }
       
       setShowModal(false);
       fetchProjects();
     } catch (e) {
+      console.error('JS error saving project:', e);
       alert("Error guardando proyecto: " + e.message);
     } finally {
       setIsSubmitting(false);
