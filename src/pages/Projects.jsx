@@ -46,7 +46,17 @@ const Projects = () => {
     { id: 'custom', name: 'Custom (OpenAI Compatible)', url: '', models: [] }
   ];
 
-  const getPriorityColor = (p) => { if (p === 'Alta') return '#ef4444'; if (p === 'Media') return '#38bdf8'; return '#22c55e'; };
+  
+  const getStatusBarColor = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('finalizado')) return '#22c55e';
+    if (s.includes('revisión') || s.includes('revision')) return '#a78bfa';
+    if (s.includes('edición') || s.includes('edicion')) return '#38bdf8';
+    if (s.includes('prompt')) return '#f97316';
+    return '#eab308'; // Guión = yellow
+  };
+
+const getPriorityColor = (p) => { if (p === 'Alta') return '#ef4444'; if (p === 'Media') return '#38bdf8'; return '#22c55e'; };
 
   const generateAI = async () => {
     if (!aiApiKey) return alert("Por favor, introduce tu API Key en la configuración de IA.");
@@ -283,17 +293,12 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
         }
       }
 
-      // Payload base — solo campos que seguro existen en la tabla
       const payload = {
         title: formData.title,
         status: formData.status || 'Guión',
+        priority: formData.priority || 'Media',
         script: formData.script || '',
         channel_id: formData.channel_id || null,
-      };
-
-      // Campos opcionales — se añaden solo si tienen valor, para no romper si la columna no existe
-      const optionalFields = {
-        priority: formData.priority || 'Media',
         historicalEra: formData.historicalEra || '',
         economicTopic: formData.economicTopic || '',
         aiInstructions: formData.aiInstructions || '',
@@ -308,31 +313,41 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
         ig_story_urls: stUrls,
         metrics: formData.metrics || { views: 0, likes: 0 },
       };
-      Object.assign(payload, optionalFields);
 
-      let result;
-      if (formData.id) {
-        result = await supabase.from('projects').update(payload).eq('id', formData.id);
-      } else {
-        result = await supabase.from('projects').insert([payload]);
-      }
-      
-      // Si falla (ej: columna no existe), reintentar con payload mínimo
-      if (result.error) {
-        console.warn('Full payload failed, retrying with minimal:', result.error.message);
-        const minPayload = { title: formData.title, status: formData.status || 'Guión', script: formData.script || '', channel_id: formData.channel_id || null };
-        let retry;
+      // Smart save: retry stripping missing columns
+      let currentPayload = { ...payload };
+      let maxRetries = 5;
+      let saved = false;
+
+      while (!saved && maxRetries > 0) {
+        let result;
         if (formData.id) {
-          retry = await supabase.from('projects').update(minPayload).eq('id', formData.id);
+          result = await supabase.from('projects').update(currentPayload).eq('id', formData.id);
         } else {
-          retry = await supabase.from('projects').insert([minPayload]);
+          result = await supabase.from('projects').insert([currentPayload]);
         }
-        if (retry.error) {
-          console.error('Minimal save also failed:', retry.error);
-          alert("Error de Supabase: " + retry.error.message + "\n\nEjecuta el SQL fix_projects_columns.sql en tu Supabase Dashboard.");
-          return;
+        
+        if (result.error) {
+          const msg = result.error.message || '';
+          // Check if it's a missing column error
+          const colMatch = msg.match(/Could not find the '(\w+)' column/);
+          if (colMatch) {
+            const badCol = colMatch[1];
+            console.warn('Stripping missing column:', badCol);
+            delete currentPayload[badCol];
+            maxRetries--;
+          } else {
+            alert("Error de Supabase: " + msg);
+            return;
+          }
+        } else {
+          saved = true;
         }
-        alert("Proyecto guardado (modo básico). Para guardar todos los campos, ejecuta fix_projects_columns.sql en Supabase.");
+      }
+
+      if (!saved) {
+        alert("No se pudo guardar. Ejecuta fix_projects_columns.sql en Supabase.");
+        return;
       }
       
       setShowModal(false);
@@ -613,7 +628,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
           const u = universes.find(un => un.id === proj.universe_id);
           const charIdsArray = Array.isArray(proj.character_ids) ? proj.character_ids : (typeof proj.character_ids==='string'?JSON.parse(proj.character_ids||'[]'):[]);
           return (
-            <div key={proj.id} className={`vis-project-card glass-panel`} onClick={() => setSelectedProject(proj)} style={{borderLeft: `4px solid ${getPriorityColor(proj.priority)}`}}>
+            <div key={proj.id} className={`vis-project-card glass-panel`} onClick={() => setSelectedProject(proj)} style={{borderLeft: `4px solid ${getStatusBarColor(proj.status)}`}}>
               <div className="vis-project-cover" style={{backgroundImage: proj.coverUrl ? `url(${proj.coverUrl})` : 'none'}}>
                 <div className="cover-fade"></div>
                 <span className={`vis-status-badge ${getStatusColorClass(proj.status)}`}>{proj.status}</span>

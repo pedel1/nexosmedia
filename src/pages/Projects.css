@@ -36,7 +36,7 @@
 }
 
 .vis-project-cover {
-  height: 180px;
+  height: 100px;
   background-color: var(--bg-elevated);
   background-size: cover;
   background-position: center;
@@ -73,7 +73,7 @@
 }
 
 .vis-project-body {
-  padding: 1.25rem;
+  padding: 0.75rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -82,7 +82,7 @@
 
 .vis-title {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1.3;
 }
 
