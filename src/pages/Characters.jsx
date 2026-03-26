@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { uploadFile } from '../supabaseHelpers';
-import { Users, MapPin, Tv, Edit, ChevronLeft, Plus, MessageSquare, Briefcase, Trash2, Camera, Smile, Video, Flame, Star, PlayCircle, Download } from 'lucide-react';
+import { Users, MapPin, Tv, Edit, ChevronLeft, Plus, MessageSquare, Briefcase, Trash2, Camera, Smile, Video, Flame, Star, PlayCircle, Download, FileDown } from 'lucide-react';
 import './Characters.css';
 
 const INITIAL_FORM_STATE = { 
@@ -223,6 +223,82 @@ const Characters = () => {
     fetchAll();
   };
 
+  const exportCharacterSheet = (av) => {
+    const channelName = channels.find(c => c.id === av.channel_id)?.title || 'Multicanal';
+    const charProjects = projects.filter(p => {
+      let ids = Array.isArray(p.character_ids) ? p.character_ids : (typeof p.character_ids==='string'?JSON.parse(p.character_ids||'[]'):[]);
+      return ids.includes(av.id);
+    });
+
+    const doc = `═══════════════════════════════════════════════════
+  NEXOSMEDIA — FICHA TÉCNICA DE PERSONAJE
+═══════════════════════════════════════════════════
+
+NOMBRE: ${av.name}
+ROL: ${av.role || 'Sin asignar'}
+CANAL: ${channelName}
+ESPECIALIDAD: ${av.expertise || 'Generalista'}
+
+───────────────────────────────────────────────────
+  COMPORTAMIENTO E IDENTIDAD
+───────────────────────────────────────────────────
+
+PERSONALIDAD (Prompt ChatGPT):
+${av.personality || 'Sin definir'}
+
+MULETILLAS, GESTOS Y FORMA DE HABLAR:
+${av.catchphrases || 'Sin definir'}
+
+VOZ (Prompt ElevenLabs):
+${av.voicePrompt || 'Sin definir'}
+
+LENGUAJE CORPORAL:
+${av.bodyLanguage || 'Sin definir'}
+
+───────────────────────────────────────────────────
+  GUÍA DE GENERACIÓN VISUAL (MIDJOURNEY / RUNWAY)
+───────────────────────────────────────────────────
+
+VISUAL PROMPT BASE (Cara, Cuerpo y Ropa):
+${av.visualPrompt || 'Sin definir'}
+
+ESTILO DE RENDER ESPECÍFICO:
+${av.renderingStyle || 'Ninguno (Hereda del Universo)'}
+
+NEGATIVE PROMPT:
+${av.negativePrompt || 'Ninguno'}
+
+───────────────────────────────────────────────────
+  FILMOGRAFÍA
+───────────────────────────────────────────────────
+
+Proyectos asignados: ${charProjects.length}
+${charProjects.length > 0 ? charProjects.map(p => `- ${p.title} [${p.status}]`).join('\n') : 'Sin proyectos asignados.'}
+
+───────────────────────────────────────────────────
+  URLS DE REFERENCIA VISUAL
+───────────────────────────────────────────────────
+
+Foto de perfil: ${av.profileImage || 'Sin foto'}
+${Array.isArray(av.galleryUrls) && av.galleryUrls.length > 0 
+  ? 'Galería:\n' + av.galleryUrls.map((url, i) => `  Ref ${i+1}: ${url}`).join('\n')
+  : 'Sin galería de referencia'}
+
+═══════════════════════════════════════════════════
+  Exportado desde NexosMedia — ${new Date().toLocaleDateString('es-ES')}
+═══════════════════════════════════════════════════
+`;
+
+    const blob = new Blob([doc], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${av.name.replace(/\s+/g, '_')}_NexosMedia.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
   if (selectedAvatar) {
     let gal = Array.isArray(selectedAvatar.galleryUrls) ? selectedAvatar.galleryUrls : (typeof selectedAvatar.galleryUrls === 'string' ? JSON.parse(selectedAvatar.galleryUrls) : []);
     
@@ -268,6 +344,9 @@ const Characters = () => {
                     <Download size={16} /> Descargar Foto
                   </button>
                 )}
+                <button className="btn-secondary" onClick={() => exportCharacterSheet(selectedAvatar)}>
+                  <FileDown size={16} /> Exportar Ficha
+                </button>
               </div>
            </div>
         </div>
