@@ -31,16 +31,25 @@ const Projects = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [wizardStep, setWizardStep] = useState(1); // 1: Guion, 2: Guion IA, 3: Edicion, 4: Revision
 
-  const [openAiKey, setOpenAiKey] = useState(localStorage.getItem('openai_api_key') || '');
+  const [aiProvider, setAiProvider] = useState(localStorage.getItem('ai_provider') || 'openai');
+  const [aiModel, setAiModel] = useState(localStorage.getItem('ai_model') || 'gpt-4o');
+  const [aiApiKey, setAiApiKey] = useState(localStorage.getItem('ai_api_key') || '');
+  const [aiBaseUrl, setAiBaseUrl] = useState(localStorage.getItem('ai_base_url') || '');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
-  const handleSaveApiKey = (val) => {
-    localStorage.setItem('openai_api_key', val);
-    setOpenAiKey(val);
-  };
+  const saveAiSetting = (key, val, setter) => { localStorage.setItem(key, val); setter(val); };
+
+  const AI_PROVIDERS = [
+    { id: 'openai', name: 'OpenAI', url: 'https://api.openai.com/v1/chat/completions', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'] },
+    { id: 'anthropic', name: 'Anthropic (Claude)', url: 'https://api.anthropic.com/v1/messages', models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'] },
+    { id: 'gemini', name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] },
+    { id: 'custom', name: 'Custom (OpenAI Compatible)', url: '', models: [] }
+  ];
+
+  const getPriorityColor = (p) => { if (p === 'Alta') return '#ef4444'; if (p === 'Media') return '#38bdf8'; return '#22c55e'; };
 
   const generateAI = async () => {
-    if (!openAiKey) return alert("Por favor, introduce tu API Key de OpenAI para conectar el cerebro.");
+    if (!aiApiKey) return alert("Por favor, introduce tu API Key en la configuración de IA.");
     if (!formData.script) return alert("Primero debes escribir un guion literario en la Fase 1.");
     setIsGeneratingAi(true);
     const targetUniverse = universes.find(u => u.id === formData.universe_id);
@@ -57,11 +66,16 @@ APLICA LA REGLA DE ORO DE LA RETENCIÓN ALGORTÍMICA:
 Para cada escena debes FUSIONAR E INTEGRAR PERFECTAMENTE TODOS los siguientes elementos sin omisión, y exprimir sus características:
 `;
     if (targetUniverse) sys += `\n[NÚCLEO 1 - UNIVERSO VISUAL]\n- Atmósfera y Estilo: ${targetUniverse.visualStyle || 'Ninguno'}\n- Tono Narrativo: ${targetUniverse.narrativeTone || 'Ninguno'}\n- Instrucciones Directrices de Cámara: ${targetUniverse.directorPrompt || 'Ninguna'}\n--> El estilo del Universo DEBE dominar la estética visual de cada escena.\n`;
-    if (targetScenarios.length > 0) sys += `\n[NÚCLEO 2 - LOCACIONES]\nLos hechos SUCEDEN en estos lugares obligatoriamente:\n` + targetScenarios.map(s => `- ${s.name} (Contexto Temporal: ${s.era})`).join('\n') + `\n`;
+    if (targetScenarios.length > 0) {
+      sys += `\n[NÚCLEO 2 - LOCACIONES Y AMBIENTACIÓN]\nLos hechos SUCEDEN en estos lugares obligatoriamente. DEBES integrar CADA DETALLE de la locación:\n`;
+      targetScenarios.map(s => {
+        sys += `- ESCENARIO "${s.name}": Época [${s.era || 'N/A'}]. Lugar Real [${s.location || 'N/A'}]. Descripción del lugar [${s.description || 'N/A'}]. Contexto Cultural y Social [${s.culturalContext || 'N/A'}]. Prompt Visual del Entorno [${s.visualPrompt || 'N/A'}]. Atmósfera y Clima [${s.atmosphere || 'N/A'}]. Elementos a EVITAR (Negative) [${s.negativePrompt || 'Ninguno'}].\n`;
+      });
+    }
     if (targetCharacters.length > 0) {
-      sys += `\n[NÚCLEO 3 - REPARTO DE ACTORES]\nCada vez que hable alguien, su diálogo DEBE EMPAPARSE de sus muletillas y personalidad. Su aparición visual DEBE incluir sus ropas invariables:\n`;
+      sys += `\n[NÚCLEO 3 - REPARTO DE ACTORES]\nCada vez que hable alguien, su diálogo DEBE EMPAPARSE de sus muletillas y personalidad. Su aparición visual DEBE incluir sus ropas invariables. INTEGRA TODO SIN OMISIÓN:\n`;
       targetCharacters.forEach(c => {
-        sys += `- Personaje "${c.name}": Personalidad [${c.personality}]. MULETILLAS Y GESTOS CLAVES [${c.catchphrases}]. RASGOS CARAS/CUERPO/ROPA [${c.visualPrompt}].\n`;
+        sys += `- Personaje "${c.name}": Rol [${c.role || 'N/A'}]. Especialidad [${c.expertise || 'N/A'}]. Personalidad COMPLETA [${c.personality || 'N/A'}]. MULETILLAS, GESTOS Y FORMA DE HABLAR [${c.catchphrases || 'N/A'}]. LENGUAJE CORPORAL [${c.bodyLanguage || 'N/A'}]. PROMPT VISUAL INMUTABLE (Cara/Cuerpo/Ropa) [${c.visualPrompt || 'N/A'}].\n`;
       });
     }
 
@@ -78,14 +92,37 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
     userP += `\n\n=== GUION LITERARIO BASE A ADAPTAR ===\n${formData.script}`;
 
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + openAiKey },
-        body: JSON.stringify({ model: 'gpt-4o', messages: [ { role: 'system', content: sys }, { role: 'user', content: userP } ] })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      setFormData({...formData, master_prompt_ai: data.choices[0].message.content});
+      let result = '';
+      if (aiProvider === 'anthropic') {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': aiApiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: JSON.stringify({ model: aiModel, max_tokens: 8192, system: sys, messages: [{ role: 'user', content: userP }] })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        result = data.content[0].text;
+      } else if (aiProvider === 'gemini') {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${aiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: sys + '\n\n' + userP }] }] })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        result = data.candidates[0].content.parts[0].text;
+      } else {
+        const endpoint = aiProvider === 'custom' && aiBaseUrl ? aiBaseUrl : 'https://api.openai.com/v1/chat/completions';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + aiApiKey },
+          body: JSON.stringify({ model: aiModel, messages: [{ role: 'system', content: sys }, { role: 'user', content: userP }] })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        result = data.choices[0].message.content;
+      }
+      setFormData({...formData, master_prompt_ai: result});
       alert("¡Prompt Maestro generado con éxito!\nRevisa la caja de texto.");
     } catch(e) {
       alert("Error IA: " + e.message);
@@ -122,7 +159,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
   };
 
   const fetchAvatars = async () => {
-    const { data } = await supabase.from('avatars').select('id, name, profileImage, role, personality, catchphrases, visualPrompt, bodyLanguage');
+    const { data } = await supabase.from('avatars').select('id, name, profileImage, role, personality, catchphrases, visualPrompt, bodyLanguage, expertise, voicePrompt, history, birthdate');
     setAvatars(data || []);
   };
 
@@ -132,7 +169,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
   };
 
   const fetchScenarios = async () => {
-    const { data } = await supabase.from('scenarios').select('id, name, coverUrl, era');
+    const { data } = await supabase.from('scenarios').select('*');
     setScenarios(data || []);
   };
 
@@ -313,7 +350,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
           <div className="project-hero-overlay"></div>
           <div className="project-hero-content">
             <span className={`badge ${getStatusColorClass(selectedProject.status)}`}>{selectedProject.status}</span>
-            <span className="badge" style={{marginLeft: '0.5rem', background: selectedProject.priority === 'Alta' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)', color: selectedProject.priority === 'Alta' ? 'var(--danger-color)' : 'white'}}>
+            <span className="badge" style={{marginLeft: '0.5rem', background: `${getPriorityColor(selectedProject.priority)}22`, color: getPriorityColor(selectedProject.priority), border: `1px solid ${getPriorityColor(selectedProject.priority)}55`}}>
               {selectedProject.priority === 'Alta' && <Flame size={12} style={{marginRight: '0.2rem', display:'inline'}}/>} 
               Prioridad: {selectedProject.priority || 'Media'}
             </span>
@@ -547,7 +584,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
           const u = universes.find(un => un.id === proj.universe_id);
           const charIdsArray = Array.isArray(proj.character_ids) ? proj.character_ids : (typeof proj.character_ids==='string'?JSON.parse(proj.character_ids||'[]'):[]);
           return (
-            <div key={proj.id} className={`vis-project-card glass-panel ${proj.priority === 'Alta' ? 'high-priority-border' : ''}`} onClick={() => setSelectedProject(proj)}>
+            <div key={proj.id} className={`vis-project-card glass-panel`} onClick={() => setSelectedProject(proj)} style={{borderLeft: `4px solid ${getPriorityColor(proj.priority)}`}}>
               <div className="vis-project-cover" style={{backgroundImage: proj.coverUrl ? `url(${proj.coverUrl})` : 'none'}}>
                 <div className="cover-fade"></div>
                 <span className={`vis-status-badge ${getStatusColorClass(proj.status)}`}>{proj.status}</span>
@@ -558,9 +595,9 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                 )}
               </div>
               <div className="vis-project-body">
-                <h3 className="vis-title">{proj.priority === 'Alta' && <Flame size={14} color="var(--danger-color)" style={{display:'inline', marginRight:'0.3rem', position:'relative', top:'2px'}}/>}{proj.title}</h3>
+                <h3 className="vis-title">{proj.title}</h3>
                 <div className="vis-badges">
-                  {proj.priority === 'Alta' && <span className="vis-badge" style={{color:'var(--danger-color)', borderColor:'rgba(239, 68, 68, 0.3)'}}>🔥 Alta Prioridad</span>}
+                  <span className="vis-badge" style={{color: getPriorityColor(proj.priority), borderColor: `${getPriorityColor(proj.priority)}55`, background: `${getPriorityColor(proj.priority)}15`}}>{proj.priority === 'Alta' ? '🔥' : proj.priority === 'Media' ? '🔵' : '🟢'} {proj.priority}</span>
                   <span className="vis-badge"><Tv size={12}/> {getChannelName(proj.channel_id)}</span>
                   {proj.historicalEra && <span className="vis-badge era"><MapPin size={12}/> {proj.historicalEra}</span>}
                 </div>
@@ -598,18 +635,17 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
             
             {/* WIZARD STEPS NAVEGATION */}
             <div style={{display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem', background:'var(--bg-elevated)', borderRadius:'8px 8px 0 0', overflowX: 'auto'}}>
-               <button type="button" onClick={()=>setWizardStep(1)} style={{minWidth: '150px', flex:1, background:'transparent', border:'none', padding:'1rem 0', color: wizardStep===1?'var(--primary-color)':'var(--text-secondary)', borderBottom: wizardStep===1?'3px solid var(--primary-color)':'3px solid transparent', outline:'none', cursor:'pointer', fontWeight: wizardStep===1?'bold':'normal', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', transition:'all 0.2s'}}>
-                 <BookOpen size={16}/> 1. Guion
-               </button>
-               <button type="button" onClick={()=>setWizardStep(2)} style={{minWidth: '150px', flex:1, background:'transparent', border:'none', padding:'1rem 0', color: wizardStep===2?'var(--gold-color)':'var(--text-secondary)', borderBottom: wizardStep===2?'3px solid var(--gold-color)':'3px solid transparent', outline:'none', cursor:'pointer', fontWeight: wizardStep===2?'bold':'normal', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', transition:'all 0.2s'}}>
-                 <Wand2 size={16}/> 2. Prompt IA
-               </button>
-               <button type="button" onClick={()=>setWizardStep(3)} style={{minWidth: '150px', flex:1, background:'transparent', border:'none', padding:'1rem 0', color: wizardStep===3?'var(--green-color)':'var(--text-secondary)', borderBottom: wizardStep===3?'3px solid var(--green-color)':'3px solid transparent', outline:'none', cursor:'pointer', fontWeight: wizardStep===3?'bold':'normal', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', transition:'all 0.2s'}}>
-                 <Scissors size={16}/> 3. Edición
-               </button>
-               <button type="button" onClick={()=>setWizardStep(4)} style={{minWidth: '150px', flex:1, background:'transparent', border:'none', padding:'1rem 0', color: wizardStep===4?'var(--primary-color)':'var(--text-secondary)', borderBottom: wizardStep===4?'3px solid var(--primary-color)':'3px solid transparent', outline:'none', cursor:'pointer', fontWeight: wizardStep===4?'bold':'normal', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', transition:'all 0.2s'}}>
-                 <CheckCircle size={16}/> 4. Revisión
-               </button>
+               {[
+                 { step: 1, label: '1. Guion', icon: <BookOpen size={14}/>, color: 'var(--primary-color)' },
+                 { step: 2, label: '2. Prompt IA', icon: <Wand2 size={14}/>, color: 'var(--gold-color)' },
+                 { step: 3, label: '3. Edición', icon: <Scissors size={14}/>, color: 'var(--green-color)' },
+                 { step: 4, label: '4. Revisión', icon: <MessageCircle size={14}/>, color: '#38bdf8' },
+                 { step: 5, label: '5. Finalizado', icon: <CheckCircle size={14}/>, color: '#22c55e' }
+               ].map(t => (
+                 <button key={t.step} type="button" onClick={()=>setWizardStep(t.step)} style={{minWidth:'120px', flex:1, background:'transparent', border:'none', padding:'0.85rem 0', color: wizardStep===t.step ? t.color : 'var(--text-secondary)', borderBottom: wizardStep===t.step ? `3px solid ${t.color}` : '3px solid transparent', outline:'none', cursor:'pointer', fontWeight: wizardStep===t.step?'bold':'normal', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.4rem', transition:'all 0.2s', fontSize:'0.85rem'}}>
+                   {t.icon} {t.label}
+                 </button>
+               ))}
             </div>
 
             <form onSubmit={handleSubmit} className="advanced-form">
@@ -628,7 +664,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                         <div className="form-group">
                           <label>Fase de Trabajo</label>
                           <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                            <option>Guión</option><option>Edición</option><option>Revisión</option><option>Finalizado</option>
+                            <option>Guión</option><option>Prompt IA</option><option>Edición</option><option>Revisión</option><option>Finalizado</option>
                           </select>
                         </div>
                         <div className="form-group">
@@ -715,24 +751,50 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
 
                 {/* ---------- WIZARD STEP 2 ---------- */}
                 {wizardStep === 2 && (
-                  <div className="animation-fade-in" style={{display:'grid', gridTemplateColumns: 'minmax(400px, 1fr)', gap:'2rem', width:'100%', maxWidth:'800px', margin:'0 auto'}}>
+                  <div className="animation-fade-in" style={{display:'grid', gridTemplateColumns: 'minmax(400px, 1fr)', gap:'1.5rem', width:'100%', maxWidth:'850px', margin:'0 auto'}}>
 
-                    <div style={{background: 'rgba(56, 189, 248, 0.05)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                      <div>
-                        <h4 style={{color:'#38bdf8', margin:'0 0 0.5rem 0', display:'flex', alignItems:'center', gap:'0.5rem'}}><Wand2 size={16}/> OpenAI API Key (Client-Side)</h4>
-                        <p style={{fontSize:'0.8rem', color:'var(--text-secondary)', margin:0}}>Se guarda seguro en tu LocalStorage para generar Prompts en este navegador.</p>
+                    <div style={{background: 'rgba(56, 189, 248, 0.05)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)'}}>
+                      <h4 style={{color:'#38bdf8', margin:'0 0 1rem 0', display:'flex', alignItems:'center', gap:'0.5rem'}}><Wand2 size={16}/> Configuración del Motor de IA</h4>
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem', marginBottom:'1rem'}}>
+                        <div className="form-group" style={{margin:0}}>
+                          <label style={{fontSize:'0.8rem'}}>Proveedor de IA</label>
+                          <select value={aiProvider} onChange={e => { saveAiSetting('ai_provider', e.target.value, setAiProvider); const prov = AI_PROVIDERS.find(p=>p.id===e.target.value); if(prov && prov.models.length) saveAiSetting('ai_model', prov.models[0], setAiModel); }}>
+                            {AI_PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group" style={{margin:0}}>
+                          <label style={{fontSize:'0.8rem'}}>Modelo</label>
+                          {AI_PROVIDERS.find(p=>p.id===aiProvider)?.models.length > 0 ? (
+                            <select value={aiModel} onChange={e => saveAiSetting('ai_model', e.target.value, setAiModel)}>
+                              {AI_PROVIDERS.find(p=>p.id===aiProvider).models.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                          ) : (
+                            <input type="text" value={aiModel} onChange={e => saveAiSetting('ai_model', e.target.value, setAiModel)} placeholder="modelo-personalizado" />
+                          )}
+                        </div>
                       </div>
-                      <input type="password" value={openAiKey} onChange={e => handleSaveApiKey(e.target.value)} placeholder="sk-..." style={{width:'200px', background:'var(--bg-elevated)', border:'1px solid var(--border-color)', color:'white', padding:'0.5rem', borderRadius:'6px'}}/>
+                      <div style={{display:'grid', gridTemplateColumns: aiProvider==='custom' ? '1fr 1fr' : '1fr', gap:'1rem'}}>
+                        <div className="form-group" style={{margin:0}}>
+                          <label style={{fontSize:'0.8rem'}}>API Key</label>
+                          <input type="password" value={aiApiKey} onChange={e => saveAiSetting('ai_api_key', e.target.value, setAiApiKey)} placeholder="sk-... / tu-clave" style={{background:'var(--bg-elevated)', border:'1px solid var(--border-color)', color:'white', padding:'0.5rem', borderRadius:'6px'}}/>
+                        </div>
+                        {aiProvider === 'custom' && (
+                          <div className="form-group" style={{margin:0}}>
+                            <label style={{fontSize:'0.8rem'}}>Base URL (Endpoint)</label>
+                            <input type="text" value={aiBaseUrl} onChange={e => saveAiSetting('ai_base_url', e.target.value, setAiBaseUrl)} placeholder="https://api.tu-servidor.com/v1/chat/completions" style={{background:'var(--bg-elevated)', border:'1px solid var(--border-color)', color:'white', padding:'0.5rem', borderRadius:'6px'}}/>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div style={{background: 'var(--bg-elevated)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)'}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:'0.5rem'}}>
                         <label style={{color:'var(--gold-color)', display:'flex', alignItems:'center', gap:'0.5rem', fontWeight:'bold', fontSize:'1.1rem'}}><FileText size={18}/> Cerebro Multiverso (Master Prompt)</label>
-                        <button type="button" onClick={generateAI} disabled={isGeneratingAi || !openAiKey} className="btn-primary" style={{background: 'var(--gold-color)', color:'black', fontWeight:'bold'}}>
-                          {isGeneratingAi ? 'Pensando...' : 'Generar Máster Prompt AI'}
+                        <button type="button" onClick={generateAI} disabled={isGeneratingAi || !aiApiKey} className="btn-primary" style={{background: 'var(--gold-color)', color:'black', fontWeight:'bold'}}>
+                          {isGeneratingAi ? '⏳ Generando...' : `🧠 Generar con ${AI_PROVIDERS.find(p=>p.id===aiProvider)?.name || 'IA'}`}
                         </button>
                       </div>
-                      <textarea rows="8" value={formData.master_prompt_ai || ''} onChange={e => setFormData({...formData, master_prompt_ai: e.target.value})} placeholder={!openAiKey ? "Introduce tu API Key arriba para habilitar." : "Guion técnico segmentado en <=9s, prompts en inglés con estilo visual heredado..."} style={{fontFamily:'monospace', fontSize:'0.85rem', lineHeight:'1.5', background:'var(--bg-background)'}}></textarea>
+                      <textarea rows="10" value={formData.master_prompt_ai || ''} onChange={e => setFormData({...formData, master_prompt_ai: e.target.value})} placeholder={!aiApiKey ? "Configura tu proveedor de IA arriba para habilitar la generación." : "Aquí aparecerá el prompt maestro masivo con todas las escenas..."} style={{fontFamily:'monospace', fontSize:'0.85rem', lineHeight:'1.6', background:'var(--bg-background)', minHeight:'250px'}}></textarea>
                     </div>
                   </div>
                 )}
@@ -768,11 +830,11 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                   </div>
                 )}
 
-                {/* ---------- WIZARD STEP 4 ---------- */}
+                {/* ---------- WIZARD STEP 4: REVISIÓN ---------- */}
                 {wizardStep === 4 && (
                   <div className="animation-fade-in" style={{display:'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1fr)', gap:'2rem', width:'100%'}}>
                     <div className="form-column">
-                      <h3 style={{color:'var(--green-color)', marginBottom:'1rem'}}>Revisión y Publicación Cruzada</h3>
+                      <h3 style={{color:'#38bdf8', marginBottom:'1rem'}}>Revisión y Feedback</h3>
                       
                       <div className="form-group">
                         <label style={{display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--danger-color)'}}>
@@ -828,6 +890,30 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                   </div>
                 )}
 
+                {/* ---------- WIZARD STEP 5: FINALIZADO ---------- */}
+                {wizardStep === 5 && (
+                  <div className="animation-fade-in" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'2rem', width:'100%', maxWidth:'600px', margin:'0 auto', padding:'2rem 0'}}>
+                    <div style={{width:'80px', height:'80px', borderRadius:'50%', background:'rgba(34,197,94,0.15)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                      <CheckCircle size={40} color="#22c55e"/>
+                    </div>
+                    <h2 style={{color:'#22c55e', margin:0}}>Proyecto Finalizado</h2>
+                    <p style={{color:'var(--text-secondary)', textAlign:'center', maxWidth:'400px'}}>Este proyecto ha completado el pipeline completo de producción y está listo para publicación.</p>
+                    <div style={{width:'100%', background:'var(--bg-elevated)', padding:'1.5rem', borderRadius:'12px', border:'1px solid var(--border-color)'}}>
+                      <h4 style={{marginBottom:'1rem', display:'flex', alignItems:'center', gap:'0.5rem'}}><BarChart size={16} className="icon-blue"/> Métricas Finales</h4>
+                      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
+                        <div className="form-group">
+                          <label>Nº Visualizaciones</label>
+                          <input type="number" min="0" value={formData.metrics.views} onChange={e => setFormData({...formData, metrics: {...formData.metrics, views: parseInt(e.target.value)||0}})} />
+                        </div>
+                        <div className="form-group">
+                          <label>Nº Likes</label>
+                          <input type="number" min="0" value={formData.metrics.likes} onChange={e => setFormData({...formData, metrics: {...formData.metrics, likes: parseInt(e.target.value)||0}})} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
               <div className="modal-footer" style={{marginTop:'1.5rem', display:'flex', justifyContent:'space-between', borderTop: '1px solid var(--border-color)', paddingTop:'1.5rem'}}>
                 <div>
@@ -837,10 +923,10 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                   {wizardStep > 1 && (
                     <button type="button" className="btn-secondary" onClick={() => setWizardStep(wizardStep - 1)}>Anterior</button>
                   )}
-                  {wizardStep < 4 ? (
+                  {wizardStep < 5 ? (
                     <button type="button" className="btn-primary" onClick={() => setWizardStep(wizardStep + 1)}>Siguiente Fase</button>
                   ) : (
-                    <button type="submit" className="btn-primary" disabled={isSubmitting} style={{fontWeight:'bold', padding:'0.75rem 2.5rem', background:'var(--green-color)'}}>{isSubmitting ? 'Acoplando Final...' : 'Confirmar Todo'}</button>
+                    <button type="submit" className="btn-primary" disabled={isSubmitting} style={{fontWeight:'bold', padding:'0.75rem 2.5rem', background:'var(--green-color)'}}>{isSubmitting ? 'Guardando...' : '✅ Confirmar Todo'}</button>
                   )}
                 </div>
               </div>

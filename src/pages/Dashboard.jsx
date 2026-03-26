@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { Video, BookOpen, Scissors, Eye, CheckCircle, Bell, AlertTriangle, PlayCircle, Users, Tv, Compass, Sparkles, Activity, Flame, Star, Target } from 'lucide-react';
+import { Video, BookOpen, Scissors, Eye, CheckCircle, Bell, AlertTriangle, PlayCircle, Users, Tv, Compass, Sparkles, Activity, Flame, Star, Target, Wand2 } from 'lucide-react';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -19,6 +19,7 @@ const Dashboard = () => {
   // Compute Funnel
   const funnel = {
     guion: projects.filter(p => (p.status || '').toLowerCase() === 'guión'),
+    promptia: projects.filter(p => (p.status || '').toLowerCase() === 'prompt ia'),
     edicion: projects.filter(p => (p.status || '').toLowerCase() === 'edición'),
     revision: projects.filter(p => (p.status || '').toLowerCase() === 'revisión'),
     finalizado: projects.filter(p => (p.status || '').toLowerCase() === 'finalizado')
@@ -58,16 +59,14 @@ const Dashboard = () => {
 
   const reminders = generateReminders();
   
-  // Total Network Metrics
-  const totalSubs = channels.reduce((acc, c) => {
-    let mt = typeof c.metrics === 'string' ? JSON.parse(c.metrics) : (c.metrics || {});
-    return acc + (mt?.subs || 0);
-  }, 0);
-  
-  const totalViews = channels.reduce((acc, c) => {
-    let mt = typeof c.metrics === 'string' ? JSON.parse(c.metrics) : (c.metrics || {});
-    return acc + (mt?.views || 0);
-  }, 0);
+  const safeM = (m) => { if(!m) return {}; if(typeof m === 'object') return m; try { return JSON.parse(m); } catch(e) { return {}; } };
+
+  const totalSubs = channels.reduce((acc, c) => acc + (safeM(c.metrics)?.subs || 0), 0);
+  const totalViews = channels.reduce((acc, c) => acc + (safeM(c.metrics)?.views || 0), 0);
+
+  const priCounts = { alta: projects.filter(p => p.priority === 'Alta' && p.status !== 'Finalizado').length, media: projects.filter(p => p.priority === 'Media' && p.status !== 'Finalizado').length, baja: projects.filter(p => p.priority === 'Baja' && p.status !== 'Finalizado').length };
+  const priTotal = priCounts.alta + priCounts.media + priCounts.baja || 1;
+  const funnelTotal = projects.length || 1;
 
   // Compute Top Characters
   const charactersWithMetrics = avatars.map(av => {
@@ -76,7 +75,7 @@ const Dashboard = () => {
       return ids.includes(av.id);
     });
     const tViews = charProjects.reduce((acc, p) => {
-      let m = typeof p.metrics === 'string' ? JSON.parse(p.metrics) : (p.metrics || {views:0});
+      let m = safeM(p.metrics);
       return acc + (m.views || 0);
     }, 0);
     return { ...av, tViews };
@@ -102,62 +101,102 @@ const Dashboard = () => {
 
       {/* ---------- PRIORITY RADAR (Fase 19) ---------- */}
       <h2 className="dashboard-section-title"><Target size={20} className="icon-blue" /> Radar de Prioridades</h2>
-      <div style={{display:'flex', gap:'1.5rem', marginBottom:'2rem', flexWrap:'wrap'}}>
-        <div className="glass-panel" style={{flex:1, minWidth: '250px', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1.5rem', borderLeft:'4px solid var(--danger-color)'}}>
+      <div style={{display:'flex', gap:'1.5rem', marginBottom:'1rem', flexWrap:'wrap'}}>
+        <div className="glass-panel" style={{flex:1, minWidth: '250px', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1.5rem', borderLeft:'4px solid #ef4444'}}>
           <div>
-             <h3 style={{margin:0, color:'var(--danger-color)', display:'flex', alignItems:'center', gap:'0.5rem'}}><Flame size={18}/> Alta Prioridad (Urgente)</h3>
+             <h3 style={{margin:0, color:'#ef4444', display:'flex', alignItems:'center', gap:'0.5rem'}}><Flame size={18}/> Urgente</h3>
              <p style={{fontSize:'0.85rem', color:'var(--text-secondary)', margin:'0.5rem 0 0 0'}}>Requieren atención inmediata.</p>
           </div>
-          <span style={{fontSize:'2.5rem', fontWeight:'bold', color:'var(--danger-color)'}}>{projects.filter(p => p.priority === 'Alta' && p.status !== 'Finalizado').length}</span>
+          <span style={{fontSize:'2.5rem', fontWeight:'bold', color:'#ef4444'}}>{priCounts.alta}</span>
         </div>
         
-        <div className="glass-panel" style={{flex:1, minWidth: '250px', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1.5rem', borderLeft:'4px solid var(--gold-color)'}}>
-          <div>
-             <h3 style={{margin:0, color:'var(--gold-color)', display:'flex', alignItems:'center', gap:'0.5rem'}}><Target size={18}/> Prioridad Media</h3>
-             <p style={{fontSize:'0.85rem', color:'var(--text-secondary)', margin:'0.5rem 0 0 0'}}>Línea temporal estable.</p>
-          </div>
-          <span style={{fontSize:'2.5rem', fontWeight:'bold', color:'var(--gold-color)'}}>{projects.filter(p => p.priority === 'Media' && p.status !== 'Finalizado').length}</span>
-        </div>
-
         <div className="glass-panel" style={{flex:1, minWidth: '250px', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1.5rem', borderLeft:'4px solid #38bdf8'}}>
           <div>
-             <h3 style={{margin:0, color:'#38bdf8', display:'flex', alignItems:'center', gap:'0.5rem'}}><Compass size={18}/> Prioridad Baja</h3>
+             <h3 style={{margin:0, color:'#38bdf8', display:'flex', alignItems:'center', gap:'0.5rem'}}><Target size={18}/> Prioridad Media</h3>
+             <p style={{fontSize:'0.85rem', color:'var(--text-secondary)', margin:'0.5rem 0 0 0'}}>Línea temporal estable.</p>
+          </div>
+          <span style={{fontSize:'2.5rem', fontWeight:'bold', color:'#38bdf8'}}>{priCounts.media}</span>
+        </div>
+
+        <div className="glass-panel" style={{flex:1, minWidth: '250px', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1.5rem', borderLeft:'4px solid #22c55e'}}>
+          <div>
+             <h3 style={{margin:0, color:'#22c55e', display:'flex', alignItems:'center', gap:'0.5rem'}}><Compass size={18}/> Prioridad Baja</h3>
              <p style={{fontSize:'0.85rem', color:'var(--text-secondary)', margin:'0.5rem 0 0 0'}}>Guiones a fuego lento.</p>
           </div>
-          <span style={{fontSize:'2.5rem', fontWeight:'bold', color:'#38bdf8'}}>{projects.filter(p => p.priority === 'Baja' && p.status !== 'Finalizado').length}</span>
+          <span style={{fontSize:'2.5rem', fontWeight:'bold', color:'#22c55e'}}>{priCounts.baja}</span>
         </div>
       </div>
 
-      {/* Production Funnel (Kanban Style Stats) */}
+      {/* PRIORITY STACKED BAR */}
+      <div className="glass-panel" style={{padding:'1rem 1.5rem', marginBottom:'2rem'}}>
+        <p style={{fontSize:'0.8rem', color:'var(--text-secondary)', margin:'0 0 0.5rem 0'}}>Distribución de Prioridades (Activas)</p>
+        <div style={{display:'flex', height:'24px', borderRadius:'12px', overflow:'hidden', background:'var(--bg-background)'}}>
+          {priCounts.alta > 0 && <div style={{width:`${(priCounts.alta/priTotal)*100}%`, background:'#ef4444', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{priCounts.alta}</div>}
+          {priCounts.media > 0 && <div style={{width:`${(priCounts.media/priTotal)*100}%`, background:'#38bdf8', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{priCounts.media}</div>}
+          {priCounts.baja > 0 && <div style={{width:`${(priCounts.baja/priTotal)*100}%`, background:'#22c55e', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{priCounts.baja}</div>}
+        </div>
+        <div style={{display:'flex', gap:'1.5rem', marginTop:'0.5rem'}}>
+          <span style={{fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'10px', height:'10px', borderRadius:'50%', background:'#ef4444', display:'inline-block'}}></span> Urgente</span>
+          <span style={{fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'10px', height:'10px', borderRadius:'50%', background:'#38bdf8', display:'inline-block'}}></span> Media</span>
+          <span style={{fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'10px', height:'10px', borderRadius:'50%', background:'#22c55e', display:'inline-block'}}></span> Baja</span>
+        </div>
+      </div>
+
       <h2 className="dashboard-section-title"><Activity size={20} className="icon-orange" /> Embudo de Producción</h2>
-      <div className="funnel-grid">
+      <div className="funnel-grid" style={{gridTemplateColumns:'repeat(5, 1fr)'}}>
         <div className="funnel-card guion">
           <div className="funnel-icon"><BookOpen size={24}/></div>
           <div className="funnel-info">
             <span className="funnel-count">{funnel.guion.length}</span>
-            <span className="funnel-label">En Guionización</span>
+            <span className="funnel-label">Guionización</span>
+          </div>
+        </div>
+        <div className="funnel-card" style={{borderTop:'3px solid var(--gold-color)'}}>
+          <div className="funnel-icon" style={{color:'var(--gold-color)'}}><Wand2 size={24}/></div>
+          <div className="funnel-info">
+            <span className="funnel-count">{funnel.promptia.length}</span>
+            <span className="funnel-label">Prompt IA</span>
           </div>
         </div>
         <div className="funnel-card edicion">
           <div className="funnel-icon"><Scissors size={24}/></div>
           <div className="funnel-info">
             <span className="funnel-count">{funnel.edicion.length}</span>
-            <span className="funnel-label">En Edición (AI/Montaje)</span>
+            <span className="funnel-label">Edición</span>
           </div>
         </div>
         <div className="funnel-card revision">
           <div className="funnel-icon"><Eye size={24}/></div>
           <div className="funnel-info">
             <span className="funnel-count">{funnel.revision.length}</span>
-            <span className="funnel-label">Pendientes de Revisión</span>
+            <span className="funnel-label">Revisión</span>
           </div>
         </div>
         <div className="funnel-card finalizado">
           <div className="funnel-icon"><CheckCircle size={24}/></div>
           <div className="funnel-info">
             <span className="funnel-count">{funnel.finalizado.length}</span>
-            <span className="funnel-label">Videos Finalizados</span>
+            <span className="funnel-label">Finalizados</span>
           </div>
+        </div>
+      </div>
+
+      {/* PIPELINE STACKED BAR */}
+      <div className="glass-panel" style={{padding:'1rem 1.5rem', marginTop:'1rem', marginBottom:'2rem'}}>
+        <p style={{fontSize:'0.8rem', color:'var(--text-secondary)', margin:'0 0 0.5rem 0'}}>Pipeline de Producción</p>
+        <div style={{display:'flex', height:'24px', borderRadius:'12px', overflow:'hidden', background:'var(--bg-background)'}}>
+          {funnel.guion.length > 0 && <div style={{width:`${(funnel.guion.length/funnelTotal)*100}%`, background:'var(--primary-color)', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{funnel.guion.length}</div>}
+          {funnel.promptia.length > 0 && <div style={{width:`${(funnel.promptia.length/funnelTotal)*100}%`, background:'var(--gold-color)', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'black'}}>{funnel.promptia.length}</div>}
+          {funnel.edicion.length > 0 && <div style={{width:`${(funnel.edicion.length/funnelTotal)*100}%`, background:'#38bdf8', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{funnel.edicion.length}</div>}
+          {funnel.revision.length > 0 && <div style={{width:`${(funnel.revision.length/funnelTotal)*100}%`, background:'#a78bfa', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{funnel.revision.length}</div>}
+          {funnel.finalizado.length > 0 && <div style={{width:`${(funnel.finalizado.length/funnelTotal)*100}%`, background:'#22c55e', transition:'width 0.6s ease', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:'bold', color:'white'}}>{funnel.finalizado.length}</div>}
+        </div>
+        <div style={{display:'flex', gap:'1rem', marginTop:'0.5rem', flexWrap:'wrap'}}>
+          <span style={{fontSize:'0.7rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'8px', height:'8px', borderRadius:'50%', background:'var(--primary-color)', display:'inline-block'}}></span> Guión</span>
+          <span style={{fontSize:'0.7rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'8px', height:'8px', borderRadius:'50%', background:'var(--gold-color)', display:'inline-block'}}></span> Prompt IA</span>
+          <span style={{fontSize:'0.7rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'8px', height:'8px', borderRadius:'50%', background:'#38bdf8', display:'inline-block'}}></span> Edición</span>
+          <span style={{fontSize:'0.7rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'8px', height:'8px', borderRadius:'50%', background:'#a78bfa', display:'inline-block'}}></span> Revisión</span>
+          <span style={{fontSize:'0.7rem', display:'flex', alignItems:'center', gap:'0.3rem'}}><span style={{width:'8px', height:'8px', borderRadius:'50%', background:'#22c55e', display:'inline-block'}}></span> Finalizado</span>
         </div>
       </div>
 
@@ -236,7 +275,7 @@ const Dashboard = () => {
               </p>
             ) : (
               <div className="timeline">
-                {[...funnel.guion, ...funnel.edicion, ...funnel.revision]
+                {[...funnel.guion, ...funnel.promptia, ...funnel.edicion, ...funnel.revision]
                   .sort((a,b) => (a.priority==='Alta' ? -1 : (b.priority==='Alta' ? 1 : 0)))
                   .slice(0, 5)
                   .map((p, idx) => (
@@ -248,7 +287,9 @@ const Dashboard = () => {
                         <span className="timeline-tag">{p.status}</span>
                       </div>
                       <p className="timeline-meta" style={{display:'flex', gap:'0.5rem', alignItems:'center'}}>
-                         {p.priority === 'Alta' && <span style={{fontSize:'0.7rem', background:'rgba(239, 68, 68, 0.2)', color:'var(--danger-color)', padding:'2px 6px', borderRadius:'10px', fontWeight:'bold'}}>Alta Prioridad</span>}
+                         {p.priority === 'Alta' && <span style={{fontSize:'0.7rem', background:'rgba(239, 68, 68, 0.2)', color:'#ef4444', padding:'2px 6px', borderRadius:'10px', fontWeight:'bold'}}>Urgente</span>}
+                         {p.priority === 'Media' && <span style={{fontSize:'0.7rem', background:'rgba(56, 189, 248, 0.2)', color:'#38bdf8', padding:'2px 6px', borderRadius:'10px', fontWeight:'bold'}}>Media</span>}
+                         {p.priority === 'Baja' && <span style={{fontSize:'0.7rem', background:'rgba(34, 197, 94, 0.2)', color:'#22c55e', padding:'2px 6px', borderRadius:'10px', fontWeight:'bold'}}>Baja</span>}
                          <span style={{color:'var(--primary-color)'}}>{p.historicalEra || 'Destino Desconocido'}</span>
                       </p>
                       <div className="timeline-cast" style={{marginTop:'0.5rem'}}>
