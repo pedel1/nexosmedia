@@ -19,6 +19,34 @@ const Characters = () => {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profilePreview, setProfilePreview] = useState(null);
+  const [galleryPreviews, setGalleryPreviews] = useState([]);
+
+  const handleProfileImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFormData({...formData, profileImage: file});
+    const reader = new FileReader();
+    reader.onloadend = () => setProfilePreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleGalleryChangeEnhanced = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + formData.existingGallery.length + formData.gallery.length > 10) {
+      alert('Máximo 10 fotos por galería.');
+      return;
+    }
+    const newFiles = [...formData.gallery, ...files];
+    setFormData({...formData, gallery: newFiles});
+    const previews = [];
+    newFiles.forEach(f => {
+      const r = new FileReader();
+      r.onloadend = () => { previews.push(r.result); if (previews.length === newFiles.length) setGalleryPreviews([...previews]); };
+      r.readAsDataURL(f);
+    });
+    if (newFiles.length === 0) setGalleryPreviews([]);
+  };
 
   useEffect(() => { 
     fetchAvatars(); 
@@ -64,6 +92,8 @@ const Characters = () => {
 
   const openCreateModal = () => {
     setFormData(INITIAL_FORM_STATE);
+    setProfilePreview(null);
+    setGalleryPreviews([]);
     setShowModal(true);
   };
 
@@ -90,6 +120,8 @@ const Characters = () => {
       existingProfileImage: av.profileImage || null,
       existingGallery: Array.isArray(av.galleryUrls) ? av.galleryUrls : (typeof av.galleryUrls === 'string' ? JSON.parse(av.galleryUrls) : [])
     });
+    setProfilePreview(av.profileImage || null);
+    setGalleryPreviews([]);
     setShowModal(true);
   };
 
@@ -298,14 +330,19 @@ const Characters = () => {
            {gal.length === 0 ? (
              <div className="panel" style={{textAlign: 'center', padding: '2rem'}}>Sin imágenes de referencia. Sube fotos desde varios ángulos.</div>
            ) : (
-             <div className="image-gallery">
-               {gal.map((url, i) => (
-                 <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="gallery-item">
-                   <img src={url} alt={`Ref ${i}`}/>
-                   <div className="gallery-overlay"><span style={{fontSize:'0.75rem', background:'black', padding:'2px 4px', borderRadius:'4px'}}>Copiar URL</span></div>
-                 </a>
-               ))}
-             </div>
+              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'1rem'}}>
+                {gal.map((url, i) => (
+                  <div key={i} style={{position:'relative', borderRadius:'12px', overflow:'hidden', border:'1px solid var(--border-color)', aspectRatio:'1', background:'var(--bg-elevated)', cursor:'pointer'}} onClick={() => window.open(url, '_blank')}>
+                    <img src={url} alt={`Ref ${i}`} style={{width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.3s ease'}}
+                         onMouseOver={e => e.currentTarget.style.transform='scale(1.05)'}
+                         onMouseOut={e => e.currentTarget.style.transform='scale(1)'}/>
+                    <div style={{position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent, rgba(0,0,0,0.7))', padding:'0.5rem', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                      <span style={{fontSize:'0.7rem', color:'white'}}>Ref {i + 1}</span>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(url); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer'}}>Copiar URL</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
            )}
         </div>
       </div>
@@ -397,11 +434,11 @@ const Characters = () => {
 
                   <div className="form-group" style={{marginTop:'1.5rem'}}>
                     <label style={{color:'var(--blue-color)'}}>Personalidad General (Prompt ChatGPT)</label>
-                    <textarea rows="2" value={formData.personality} onChange={e => setFormData({...formData, personality: e.target.value})} placeholder="Sarcástico, inteligente, pero despistado..."></textarea>
+                    <textarea rows="5" value={formData.personality} onChange={e => setFormData({...formData, personality: e.target.value})} placeholder="Sarcástico, inteligente, pero despistado..."></textarea>
                   </div>
                   <div className="form-group">
                     <label style={{color:'var(--primary-color)'}}>Muletillas, Gestos y Forma de hablar *CRUCIAL ALGORTÍMICO*</label>
-                    <textarea rows="3" value={formData.catchphrases} onChange={e => setFormData({...formData, catchphrases: e.target.value})} placeholder='Fuma en pipa, camina nervioso. Frases: "Como siempre digo...", "Ah, la historia..."'></textarea>
+                    <textarea rows="6" value={formData.catchphrases} onChange={e => setFormData({...formData, catchphrases: e.target.value})} placeholder='Fuma en pipa, camina nervioso. Frases: "Como siempre digo...", "Ah, la historia..."'></textarea>
                   </div>
                   <div className="form-group">
                     <label>Voz (Prompt ElevenLabs o Base de voz)</label>
@@ -412,19 +449,33 @@ const Characters = () => {
                 <div className="form-column">
                   <h3 style={{borderBottom:'1px solid var(--border-color)', paddingBottom:'0.5rem', marginBottom:'1.5rem'}}><Camera size={18} className="icon-orange"/> Guía de IA Visual (Midjourney)</h3>
                   
-                  <div style={{background:'var(--bg-elevated)', padding:'1rem', borderRadius:'12px', marginBottom:'1.5rem'}}>
-                    <label style={{display:'block', marginBottom:'0.5rem', fontWeight:'bold', fontSize:'0.9rem', color:'var(--text-primary)'}}>Foto de Perfil Ppal (Rostro Claro)</label>
-                    <input type="file" accept="image/*" onChange={e => setFormData({...formData, profileImage: e.target.files[0]})} style={{width:'100%'}}/>
-                  </div>
+                   <div style={{background:'var(--bg-elevated)', padding:'1.5rem', borderRadius:'12px', marginBottom:'1.5rem', border:'1px solid var(--border-color)'}}>
+                     <label style={{display:'block', marginBottom:'0.75rem', fontWeight:'bold', fontSize:'0.9rem', color:'var(--text-primary)'}}>Foto de Perfil Principal</label>
+                     <div style={{display:'flex', gap:'1.5rem', alignItems:'center'}}>
+                       <div style={{width:'120px', height:'120px', borderRadius:'50%', overflow:'hidden', border:'3px solid var(--primary-color)', background:'var(--bg-background)', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center'}}>
+                         {profilePreview ? (
+                           <img src={profilePreview} alt="Preview" style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+                         ) : (
+                           <Camera size={32} color="var(--text-muted)"/>
+                         )}
+                       </div>
+                       <div style={{flex:1}}>
+                         <input type="file" accept="image/*" id="profile-upload" onChange={handleProfileImageChange} style={{display:'none'}}/>
+                         <label htmlFor="profile-upload" style={{display:'inline-flex', alignItems:'center', gap:'0.5rem', padding:'0.6rem 1.2rem', background:'var(--primary-color)', color:'white', borderRadius:'8px', cursor:'pointer', fontSize:'0.85rem', fontWeight:'bold'}}>Seleccionar Imagen</label>
+                         <p style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'0.5rem'}}>JPG, PNG o WebP</p>
+                         {formData.profileImage instanceof File && <p style={{fontSize:'0.75rem', color:'#22c55e', marginTop:'0.25rem'}}>Imagen lista para subir</p>}
+                       </div>
+                     </div>
+                   </div>
 
                   <div className="form-group">
                     <label style={{color:'var(--gold-color)'}}>Prompt Visual Base (Cara, Cuerpo y Ropa habitual)</label>
-                    <textarea rows="5" className="style-prompt" value={formData.visualPrompt} onChange={e => setFormData({...formData, visualPrompt: e.target.value})} placeholder="35yo male, sharp jawline, short brown hair, piercing blue eyes, realistic. Wearing a Victorian era dirty suit, silver pocket watch."></textarea>
+                    <textarea rows="8" className="style-prompt" value={formData.visualPrompt} onChange={e => setFormData({...formData, visualPrompt: e.target.value})} placeholder="35yo male, sharp jawline, short brown hair, piercing blue eyes, realistic. Wearing a Victorian era dirty suit, silver pocket watch."></textarea>
                   </div>
 
                   <div className="form-group">
                     <label style={{display:'block', marginBottom:'0.5rem'}}>Galería Reference (Seed Images para --cref)</label>
-                    <input type="file" multiple accept="image/*" onChange={handleGalleryChange} style={{width:'100%', padding:'0.5rem', border:'1px dashed var(--border-color)', background:'var(--bg-background)', borderRadius:'8px'}}/>
+                    <input type="file" multiple accept="image/*" onChange={handleGalleryChangeEnhanced} style={{width:'100%', padding:'0.5rem', border:'1px dashed var(--border-color)', background:'var(--bg-background)', borderRadius:'8px'}}/>
                     <div style={{display:'flex', gap:'8px', flexWrap:'wrap', marginTop:'15px'}}>
                       {formData.existingGallery.map((url, i) => (
                         <div key={i} style={{position:'relative', width:'60px', height:'60px'}}>
@@ -432,9 +483,12 @@ const Characters = () => {
                           <button type="button" onClick={()=>removeExistingGalleryImage(i)} style={{position:'absolute', top:'-6px', right:'-6px', background:'var(--danger-color)', color:'white', border:'none', borderRadius:'50%', width:'18px', height:'18px', fontSize:'12px', cursor:'pointer'}}>x</button>
                         </div>
                       ))}
-                      {formData.gallery.map((file, i) => (
-                         <div key={`new-${i}`} style={{width:'60px', height:'60px', background:'var(--primary-color)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'white', fontWeight:'bold'}}>Nuevo</div>
-                      ))}
+                       {galleryPreviews.map((src, i) => (
+                          <div key={`new-${i}`} style={{position:'relative', width:'80px', height:'80px', borderRadius:'10px', overflow:'hidden', border:'2px solid var(--primary-color)'}}>
+                            <img src={src} alt={`new ${i}`} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+                            <div style={{position:'absolute', top:'2px', left:'2px', background:'var(--primary-color)', color:'white', borderRadius:'4px', padding:'1px 4px', fontSize:'0.55rem', fontWeight:'bold'}}>NUEVO</div>
+                          </div>
+                       ))}
                     </div>
                   </div>
                 </div>
