@@ -263,6 +263,72 @@ const Characters = () => {
            </div>
         </div>
 
+{/* LA PARTE PRINCIPAL LORE E IA */}
+        <div className="profile-grid-top">
+           <div className="profile-section-card glass-panel" style={{borderLeft: '4px solid var(--primary-color)', background: 'linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(56,189,248,0.03) 100%)'}}>
+               <h3><MessageSquare size={18} className="icon-blue"/> Comportamiento e Identidad</h3>
+               <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1rem'}}>Instrucciones para ChatGPT / ElevenLabs.</p>
+               <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
+                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px'}}>
+                    <strong style={{color:'var(--text-primary)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.05em'}}>Background / Especialidad</strong>
+                    <p style={{marginTop:'0.25rem', fontSize:'0.95rem'}}>{selectedAvatar.expertise || 'Generalista'}</p>
+                 </div>
+                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px'}}>
+                    <strong style={{color:'var(--primary-color)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.05em'}}>Voz Base / Clon de Audio (ElevenLabs)</strong>
+                    <p style={{marginTop:'0.25rem', fontFamily:'monospace', fontSize:'0.9rem'}}>{selectedAvatar.voicePrompt || 'Sin asignación de voz.'}</p>
+                 </div>
+                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px'}}>
+                    <strong style={{color:'var(--primary-color)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.05em'}}>Personalidad (ChatGPT)</strong>
+                    <p style={{marginTop:'0.25rem', fontSize:'0.95rem'}}>{selectedAvatar.personality || 'Neutral'}</p>
+                 </div>
+                 <div style={{background:'rgba(56, 189, 248, 0.05)', padding:'1rem', borderRadius:'8px', borderLeft:'3px solid #38bdf8'}}>
+                    <strong style={{color:'#38bdf8', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.05em'}}>Muletillas, Gestos y Forma de Hablar</strong>
+                    <p style={{marginTop:'0.25rem', fontStyle:'italic'}}>"{selectedAvatar.catchphrases || '...'}"</p>
+                 </div>
+               </div>
+           </div>
+
+           <div className="profile-section-card glass-panel" style={{gridColumn: '1 / -1', border: '1px solid rgba(255,107,0,0.3)', background: 'linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(255,107,0,0.03) 100%)'}}>
+               <h3><Camera size={18} className="icon-orange"/> Guía de Generación Visual (Midjourney / Runway)</h3>
+               <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1rem'}}>Esta sección es <strong>crítica</strong> para mantener la consistencia al renderizar al actor.</p>
+               <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'1.5rem'}}>
+                 <div style={{background:'rgba(255,107,0,0.05)', padding:'1rem', borderRadius:'8px', border:'1px solid rgba(255,107,0,0.2)'}}>
+                    <strong style={{color:'var(--primary-color)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.05em'}}>Prompt Visual (Cara, Ropa y Cuerpo)</strong>
+                    <p style={{marginTop:'0.25rem', fontFamily:'monospace', fontSize:'0.9rem', whiteSpace:'pre-wrap'}}>{selectedAvatar.visualPrompt || 'Sin prompt base.'}</p>
+                 </div>
+                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border-color)'}}>
+                    <strong style={{color:'var(--text-primary)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.05em'}}>Estilo de Render Específico (Opcional)</strong>
+                    <p style={{marginTop:'0.25rem', fontSize:'0.9rem', whiteSpace:'pre-wrap'}}>{selectedAvatar.renderingStyle || 'Ninguno (Dejar heredar Universo)'}</p>
+                 </div>
+               </div>
+           </div>
+        </div>
+
+        <div className="profile-section-card glass-panel" style={{marginTop: '2rem'}}>
+           <h3>Galería de Referencias Visuales (Seed Images)</h3>
+           <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1.5rem'}}>
+             Usa estas imágenes en Midjourney con <code>--cref</code> o como inputs para mantener su cara idéntica en cualquier disfraz de época.
+           </p>
+           {gal.length === 0 ? (
+             <div className="panel" style={{textAlign: 'center', padding: '2rem'}}>Sin imágenes de referencia. Sube fotos desde varios ángulos.</div>
+           ) : (
+              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'1rem'}}>
+                {gal.map((url, i) => (
+                  <div key={i} style={{position:'relative', borderRadius:'12px', overflow:'hidden', border:'1px solid var(--border-color)', aspectRatio:'1', background:'var(--bg-elevated)', cursor:'pointer'}} onClick={() => window.open(url, '_blank')}>
+                    <img src={url} alt={`Ref ${i}`} style={{width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.3s ease'}}
+                         onMouseOver={e => e.currentTarget.style.transform='scale(1.05)'}
+                         onMouseOut={e => e.currentTarget.style.transform='scale(1)'}/>
+                    <div style={{position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent, rgba(0,0,0,0.7))', padding:'0.5rem', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                      <span style={{fontSize:'0.7rem', color:'white'}}>Ref {i + 1}</span>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(url); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer'}}>Copiar URL</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(url, `${selectedAvatar.name}_ref_${i+1}.jpg`); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', marginLeft:'4px'}}>⬇ Descargar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+           )}
+        </div>
+
         {/* CINE / METRICAS AÑADIDO EN LA FASE 17 */}
         <div className="profile-section-card glass-panel" style={{marginTop: '1.5rem', marginBottom: '1.5rem', border: '1px solid var(--primary-color)', background: 'linear-gradient(90deg, rgba(20,20,25,0.9) 0%, rgba(255,107,0,0.05) 100%)'}}>
           <h3 style={{color:'var(--primary-color)'}}><Video size={18} className="icon-orange"/> Filmografía y Popularidad</h3>
@@ -302,71 +368,6 @@ const Characters = () => {
           </div>
         </div>
 
-        {/* LA PARTE PRINCIPAL LORE E IA */}
-        <div className="profile-grid-top">
-           <div className="profile-section-card glass-panel" style={{borderLeft: '4px solid var(--primary-color)'}}>
-               <h3><MessageSquare size={18} className="icon-blue"/> Comportamiento e Identidad</h3>
-               <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1rem'}}>Instrucciones para ChatGPT / ElevenLabs.</p>
-               <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
-                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px'}}>
-                    <strong style={{color:'var(--text-primary)', fontSize:'0.85rem'}}>Background / Especialidad</strong>
-                    <p style={{marginTop:'0.25rem', fontSize:'0.95rem'}}>{selectedAvatar.expertise || 'Generalista'}</p>
-                 </div>
-                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px'}}>
-                    <strong style={{color:'var(--primary-color)', fontSize:'0.85rem'}}>Voz Base / Clon de Audio (ElevenLabs)</strong>
-                    <p style={{marginTop:'0.25rem', fontFamily:'monospace', fontSize:'0.9rem'}}>{selectedAvatar.voicePrompt || 'Sin asignación de voz.'}</p>
-                 </div>
-                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px'}}>
-                    <strong style={{color:'var(--primary-color)', fontSize:'0.85rem'}}>Personalidad (ChatGPT)</strong>
-                    <p style={{marginTop:'0.25rem', fontSize:'0.95rem'}}>{selectedAvatar.personality || 'Neutral'}</p>
-                 </div>
-                 <div style={{background:'rgba(56, 189, 248, 0.05)', padding:'1rem', borderRadius:'8px', borderLeft:'3px solid #38bdf8'}}>
-                    <strong style={{color:'#38bdf8', fontSize:'0.85rem'}}>Muletillas, Gestos y Forma de Hablar</strong>
-                    <p style={{marginTop:'0.25rem', fontStyle:'italic'}}>"{selectedAvatar.catchphrases || '...'}"</p>
-                 </div>
-               </div>
-           </div>
-
-           <div className="profile-section-card glass-panel" style={{gridColumn: '1 / -1', border: '1px solid var(--border-color)'}}>
-               <h3><Camera size={18} className="icon-orange"/> Guía de Generación Visual (Midjourney / Runway)</h3>
-               <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1rem'}}>Esta sección es <strong>crítica</strong> para mantener la consistencia al renderizar al actor.</p>
-               <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'1.5rem'}}>
-                 <div style={{background:'rgba(255,107,0,0.05)', padding:'1rem', borderRadius:'8px', border:'1px solid rgba(255,107,0,0.2)'}}>
-                    <strong style={{color:'var(--primary-color)', fontSize:'0.85rem'}}>Prompt Visual (Cara, Ropa y Cuerpo)</strong>
-                    <p style={{marginTop:'0.25rem', fontFamily:'monospace', fontSize:'0.9rem', whiteSpace:'pre-wrap'}}>{selectedAvatar.visualPrompt || 'Sin prompt base.'}</p>
-                 </div>
-                 <div style={{background:'var(--bg-background)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border-color)'}}>
-                    <strong style={{color:'var(--text-primary)', fontSize:'0.85rem'}}>Estilo de Render Específico (Opcional)</strong>
-                    <p style={{marginTop:'0.25rem', fontSize:'0.9rem', whiteSpace:'pre-wrap'}}>{selectedAvatar.renderingStyle || 'Ninguno (Dejar heredar Universo)'}</p>
-                 </div>
-               </div>
-           </div>
-        </div>
-
-        <div className="profile-section-card glass-panel" style={{marginTop: '2rem'}}>
-           <h3>Galería de Referencias Visuales (Seed Images)</h3>
-           <p style={{fontSize:'0.95rem', color:'var(--text-secondary)', marginBottom:'1.5rem'}}>
-             Usa estas imágenes en Midjourney con <code>--cref</code> o como inputs para mantener su cara idéntica en cualquier disfraz de época.
-           </p>
-           {gal.length === 0 ? (
-             <div className="panel" style={{textAlign: 'center', padding: '2rem'}}>Sin imágenes de referencia. Sube fotos desde varios ángulos.</div>
-           ) : (
-              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'1rem'}}>
-                {gal.map((url, i) => (
-                  <div key={i} style={{position:'relative', borderRadius:'12px', overflow:'hidden', border:'1px solid var(--border-color)', aspectRatio:'1', background:'var(--bg-elevated)', cursor:'pointer'}} onClick={() => window.open(url, '_blank')}>
-                    <img src={url} alt={`Ref ${i}`} style={{width:'100%', height:'100%', objectFit:'cover', transition:'transform 0.3s ease'}}
-                         onMouseOver={e => e.currentTarget.style.transform='scale(1.05)'}
-                         onMouseOut={e => e.currentTarget.style.transform='scale(1)'}/>
-                    <div style={{position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent, rgba(0,0,0,0.7))', padding:'0.5rem', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                      <span style={{fontSize:'0.7rem', color:'white'}}>Ref {i + 1}</span>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(url); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer'}}>Copiar URL</button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(url, `${selectedAvatar.name}_ref_${i+1}.jpg`); }} style={{fontSize:'0.65rem', background:'rgba(255,255,255,0.2)', color:'white', border:'none', borderRadius:'4px', padding:'2px 6px', cursor:'pointer', marginLeft:'4px'}}>⬇ Descargar</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-           )}
-        </div>
       </div>
     );
   }
