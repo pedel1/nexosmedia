@@ -261,7 +261,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title) return alert("El título es obligatorio");
+    if (!formData.title) return alert("Ponle un título al proyecto para guardarlo");
     setIsSubmitting(true);
 
     try {
@@ -931,15 +931,14 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                 <div>
                   {formData.id && <button type="button" className="btn-secondary" style={{color: 'var(--text-secondary)', borderColor: 'transparent'}} onClick={(e) => handleDelete(formData.id, e)}>Eliminar Obra</button>}
                 </div>
-                <div style={{display:'flex', gap:'1rem'}}>
+                <div style={{display:'flex', gap:'0.75rem', alignItems:'center'}}>
                   {wizardStep > 1 && (
-                    <button type="button" className="btn-secondary" onClick={() => setWizardStep(wizardStep - 1)}>Anterior</button>
+                    <button type="button" className="btn-secondary" onClick={() => setWizardStep(wizardStep - 1)}>← Anterior</button>
                   )}
-                  {wizardStep < 5 ? (
-                    <button type="button" className="btn-primary" onClick={() => setWizardStep(wizardStep + 1)}>Siguiente Fase</button>
-                  ) : (
-                    <button type="submit" className="btn-primary" disabled={isSubmitting} style={{fontWeight:'bold', padding:'0.75rem 2.5rem', background:'var(--green-color)'}}>{isSubmitting ? 'Guardando...' : '✅ Confirmar Todo'}</button>
+                  {wizardStep < 5 && (
+                    <button type="button" className="btn-secondary" onClick={() => setWizardStep(wizardStep + 1)}>Siguiente Fase →</button>
                   )}
+                  <button type="submit" className="btn-primary" disabled={isSubmitting} style={{fontWeight:'bold', padding:'0.65rem 1.5rem', background:'var(--green-color)', marginLeft: wizardStep < 5 ? '0.5rem' : '0'}}>{isSubmitting ? 'Guardando...' : '💾 Guardar'}</button>
                 </div>
               </div>
             </form>
