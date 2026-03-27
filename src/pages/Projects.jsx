@@ -32,7 +32,7 @@ const Projects = () => {
   const [wizardStep, setWizardStep] = useState(1); // 1: Guion, 2: Guion IA, 3: Edicion, 4: Revision
 
   const [aiProvider, setAiProvider] = useState(localStorage.getItem('ai_provider') || 'openai');
-  const [aiModel, setAiModel] = useState(localStorage.getItem('ai_model') || 'gpt-4o');
+  const [aiModel, setAiModel] = useState(localStorage.getItem('ai_model') || 'gpt-5.4-mini');
   const [aiApiKey, setAiApiKey] = useState(localStorage.getItem('ai_api_key') || '');
   const [aiBaseUrl, setAiBaseUrl] = useState(localStorage.getItem('ai_base_url') || '');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
@@ -40,9 +40,9 @@ const Projects = () => {
   const saveAiSetting = (key, val, setter) => { localStorage.setItem(key, val); setter(val); };
 
   const AI_PROVIDERS = [
-    { id: 'openai', name: 'OpenAI', url: 'https://api.openai.com/v1/chat/completions', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'] },
+    { id: 'openai', name: 'OpenAI', url: 'https://api.openai.com/v1/chat/completions', models: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3', 'gpt-5', 'gpt-5-mini', 'gpt-4o'] },
     { id: 'anthropic', name: 'Anthropic (Claude)', url: 'https://api.anthropic.com/v1/messages', models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'] },
-    { id: 'gemini', name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] },
+    { id: 'gemini', name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/', models: ['gemini-3.1-pro-preview', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'] },
     { id: 'custom', name: 'Custom (OpenAI Compatible)', url: '', models: [] }
   ];
 
