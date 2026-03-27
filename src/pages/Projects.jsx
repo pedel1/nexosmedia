@@ -34,7 +34,6 @@ const Projects = () => {
   const [aiProvider, setAiProvider] = useState(localStorage.getItem('ai_provider') || 'openai');
   const [aiModel, setAiModel] = useState(localStorage.getItem('ai_model') || 'gpt-5.4-mini');
   const [aiApiKey, setAiApiKey] = useState(localStorage.getItem('ai_api_key') || '');
-  const [aiBaseUrl, setAiBaseUrl] = useState(localStorage.getItem('ai_base_url') || '');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
   const saveAiSetting = (key, val, setter) => { localStorage.setItem(key, val); setter(val); };
@@ -43,7 +42,6 @@ const Projects = () => {
     { id: 'openai', name: 'OpenAI', url: 'https://api.openai.com/v1/chat/completions', models: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3', 'gpt-5', 'gpt-5-mini', 'gpt-4o'] },
     { id: 'anthropic', name: 'Anthropic (Claude)', url: 'https://api.anthropic.com/v1/messages', models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'] },
     { id: 'gemini', name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/', models: ['gemini-3.1-pro-preview', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'] },
-    { id: 'custom', name: 'Custom (OpenAI Compatible)', url: '', models: [] }
   ];
 
   
@@ -122,7 +120,7 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
         if (data.error) throw new Error(data.error.message);
         result = data.candidates[0].content.parts[0].text;
       } else {
-        const endpoint = aiProvider === 'custom' && aiBaseUrl ? aiBaseUrl : 'https://api.openai.com/v1/chat/completions';
+        const endpoint = 'https://api.openai.com/v1/chat/completions';
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + aiApiKey },
@@ -824,23 +822,13 @@ FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
                             <select value={aiModel} onChange={e => saveAiSetting('ai_model', e.target.value, setAiModel)}>
                               {AI_PROVIDERS.find(p=>p.id===aiProvider).models.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
-                          ) : (
-                            <input type="text" value={aiModel} onChange={e => saveAiSetting('ai_model', e.target.value, setAiModel)} placeholder="modelo-personalizado" />
-                          )}
+                          ) : null}
                         </div>
                       </div>
-                      <div style={{display:'grid', gridTemplateColumns: aiProvider==='custom' ? '1fr 1fr' : '1fr', gap:'1rem'}}>
-                        <div className="form-group" style={{margin:0}}>
+                      <div className="form-group" style={{margin:0}}>
                           <label style={{fontSize:'0.8rem'}}>API Key</label>
                           <input type="password" value={aiApiKey} onChange={e => saveAiSetting('ai_api_key', e.target.value, setAiApiKey)} placeholder="sk-... / tu-clave" style={{background:'var(--bg-elevated)', border:'1px solid var(--border-color)', color:'white', padding:'0.5rem', borderRadius:'6px'}}/>
                         </div>
-                        {aiProvider === 'custom' && (
-                          <div className="form-group" style={{margin:0}}>
-                            <label style={{fontSize:'0.8rem'}}>Base URL (Endpoint)</label>
-                            <input type="text" value={aiBaseUrl} onChange={e => saveAiSetting('ai_base_url', e.target.value, setAiBaseUrl)} placeholder="https://api.tu-servidor.com/v1/chat/completions" style={{background:'var(--bg-elevated)', border:'1px solid var(--border-color)', color:'white', padding:'0.5rem', borderRadius:'6px'}}/>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     <div style={{background: 'var(--bg-elevated)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)'}}>
