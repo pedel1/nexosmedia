@@ -64,40 +64,54 @@ const getPriorityColor = (p) => { if (p === 'Alta') return '#ef4444'; if (p === 
     const targetScenarios = scenarios.filter(s => formData.scenario_ids.includes(s.id));
     const targetCharacters = avatars.filter(a => formData.character_ids.includes(a.id));
 
-    let sys = `Eres un "Showrunner" experto y Asistente de Director para videoclips generados por IA hiper-optimizados para TikTok e Instagram Reels. 
-TU OBJETIVO INQUEBRANTABLE: Recibir el Guion Literario y escupir un "Master Prompt Técnico" MASIVO, HIPER-DETALLADO Y CINEMATOGRÁFICO, segmentado OBLIGATORIAMENTE en mini-escenas de MÁXIMO 9 SEGUNDOS (Límite visual de IAs como Runway/Sora).
-ESTÁ ESTRICTAMENTE PROHIBIDO DEVOLVER PROMPTS CORTOS O RESUMIDOS. Tienes que describir hasta el más mínimo detalle visual, actitudinal y de iluminación. Tienes que tener en cuenta TODO EL CONTEXTO del personaje (su personalidad, su ropa, su forma de ser) y del entorno temporal. NO TE DEJES NINGÚN DATO FUERA.
-APLICA LA REGLA DE ORO DE LA RETENCIÓN ALGORTÍMICA:
-- Ningún plano debe durar más de 2-3 segundos vacío.
-- Los inicios no deben saludar, deben ir directos a un Hook agresivo ("Te están robando", "Mira esto", movimiento lateral brusco).
-- Obliga a los personajes a mantener alta proximidad y dinámicas parasitarias (Romper 4º pared, dirigirse al espectador bruscamente).
-Para cada escena debes FUSIONAR E INTEGRAR PERFECTAMENTE TODOS los siguientes elementos sin omisión, y exprimir sus características:
+    let sys = `Eres un "Showrunner" experto para videoclips de IA optimizados para TikTok/Reels.
+TU MISIÓN: Recibir el Guion Literario y devolver un "Master Prompt Técnico" segmentado en mini-escenas de MÁXIMO 9 SEGUNDOS (límite de IAs como Runway/Sora).
+
+REGLAS CLAVE:
+1. DESCRIPCIÓN FÍSICA DEL PERSONAJE → Solo UNA VEZ al principio del documento, como referencia. NO la repitas en cada escena. Vamos a adjuntar fotos del personaje a la herramienta, así que la descripción física es secundaria.
+2. PERSONALIDAD, MULETILLAS Y FORMA DE HABLAR → Esto SÍ debe impregnar CADA escena. El diálogo debe respirar la personalidad del personaje: sus muletillas, gestos, forma de expresarse, lenguaje corporal. Esto es lo más importante.
+3. ENTORNO Y ESCENARIO → Debe ser CONTEXTUAL al tema del vídeo. Si el vídeo es sobre los Peaky Blinders, el entorno debe ser Birmingham post-guerra, fábricas, calles obreras, hipódromos. Deduce el entorno del CONTENIDO del guión, no de una plantilla fija.
+4. RETENCIÓN ALGORÍTMICA:
+   - Ningún plano vacío de más de 2-3 segundos.
+   - Hook agresivo en los primeros 3 segundos (sin saludos ni introducciones).
+   - Proximidad al espectador: romper 4ª pared, dirigirse directo a cámara.
+5. El Master Prompt debe ser EXTENSO y DETALLADO en cuanto a acción, actitud y diálogo. Pero NO repitas la misma información del personaje en cada escena.
 `;
-    if (targetUniverse) sys += `\n[NÚCLEO 1 - UNIVERSO VISUAL]\n- Atmósfera y Estilo: ${targetUniverse.visualStyle || 'Ninguno'}\n- Tono Narrativo: ${targetUniverse.narrativeTone || 'Ninguno'}\n- Instrucciones Directrices de Cámara: ${targetUniverse.directorPrompt || 'Ninguna'}\n--> El estilo del Universo DEBE dominar la estética visual de cada escena.\n`;
+    if (targetUniverse) sys += `\n[UNIVERSO VISUAL — Estilo Global]\n- Estilo Visual: ${targetUniverse.visualStyle || 'Ninguno'}\n- Tono Narrativo: ${targetUniverse.narrativeTone || 'Ninguno'}\n- Dirección de Cámara: ${targetUniverse.directorPrompt || 'Ninguna'}\n--> Este estilo DOMINA la estética de todo el vídeo.\n`;
     if (targetScenarios.length > 0) {
-      sys += `\n[NÚCLEO 2 - LOCACIONES Y AMBIENTACIÓN]\nLos hechos SUCEDEN en estos lugares obligatoriamente. DEBES integrar CADA DETALLE de la locación:\n`;
+      sys += `\n[ESCENARIOS DE REFERENCIA — Usa como inspiración para ambientar según el contexto del vídeo]\n`;
       targetScenarios.map(s => {
-        sys += `- ESCENARIO "${s.name}": Época [${s.era || 'N/A'}]. Lugar Real [${s.location || 'N/A'}]. Descripción del lugar [${s.description || 'N/A'}]. Contexto Cultural y Social [${s.culturalContext || 'N/A'}]. Prompt Visual del Entorno [${s.visualPrompt || 'N/A'}]. Atmósfera y Clima [${s.atmosphere || 'N/A'}]. Elementos a EVITAR (Negative) [${s.negativePrompt || 'Ninguno'}].\n`;
+        sys += `- "${s.name}": Época [${s.era || 'N/A'}]. Lugar [${s.location || 'N/A'}]. Descripción [${s.description || 'N/A'}]. Atmósfera [${s.atmosphere || 'N/A'}].\n`;
       });
+      sys += `--> IMPORTANTE: El entorno de cada escena debe derivarse del TEMA del vídeo. Los escenarios de arriba son referencia, pero adapta el entorno al contenido del guión.\n`;
     }
     if (targetCharacters.length > 0) {
-      sys += `\n[NÚCLEO 3 - REPARTO DE ACTORES]\nCada vez que hable alguien, su diálogo DEBE EMPAPARSE de sus muletillas y personalidad. Su aparición visual DEBE incluir sus ropas invariables. INTEGRA TODO SIN OMISIÓN:\n`;
+      sys += `\n[FICHA DE PERSONAJES — Referencia única, NO repetir en cada escena]\n`;
       targetCharacters.forEach(c => {
-        sys += `- Personaje "${c.name}": Rol [${c.role || 'N/A'}]. Especialidad [${c.expertise || 'N/A'}]. Personalidad COMPLETA [${c.personality || 'N/A'}]. MULETILLAS, GESTOS Y FORMA DE HABLAR [${c.catchphrases || 'N/A'}]. LENGUAJE CORPORAL [${c.bodyLanguage || 'N/A'}]. PROMPT VISUAL INMUTABLE (Cara/Cuerpo/Ropa) [${c.visualPrompt || 'N/A'}].\n`;
+        sys += `\n### ${c.name}
+- Rol: ${c.role || 'N/A'}
+- Especialidad: ${c.expertise || 'N/A'}
+- Personalidad: ${c.personality || 'N/A'}
+- MULETILLAS Y FORMA DE HABLAR: ${c.catchphrases || 'N/A'}
+- LENGUAJE CORPORAL: ${c.bodyLanguage || 'N/A'}
+- Aspecto Visual (referencia, NO repetir por escena): ${c.visualPrompt || 'N/A'}
+`;
       });
+      sys += `\n--> En cada escena, el diálogo DEBE usar las muletillas y la forma de hablar del personaje. Su aparición visual ya la tenemos con fotos adjuntas.\n`;
     }
 
-    let userP = `Divide el siguiente guion en secuencias técnicas exactas para la IA de vídeo.
-⚠️ IMPORTANTE: TU RESPUESTA DEBE SER MASIVA Y ENORME. CADA ESCENA DEBE CONTENER UNA DESCRIPCIÓN CINEMATOGRÁFICA Y NARRATIVA EXTREMADAMENTE EXTENSA. NO SEAS BREVE. NO RESUMAS. TIENES QUE APROVECHAR AL 100% CADA ATRIBUTO, PROCEDENCIA, GESTO, PERSONALIDAD Y ASPECTO VISUAL QUE TE HEMOS PASADO DEL ESCENARIO Y DEL ACTOR.
-FORMATO OBLIGATORIO DE RESPUESTA EN MARKDOWN PARA CADA ESCENA:
+    let userP = `Divide el siguiente guion en escenas técnicas para IA de vídeo.
+
+FORMATO DE RESPUESTA (Markdown):
+
 ### Escena X (Dur. Estimada: Z segs)
-- **Acción/Contexto Analítico:** Qué pasa exactamente en la escena. Qué actitud, pose, gestos físicos (muletillas corporales) e intenciones exudan los personajes. ¿Dónde están ubicados? ¿Cómo se comportan?
-- **Master Prompt Visual (INGLÉS - PÁRRAFO GIGANTE):** Escribe el prompt hiper-detallado de imagen para Midjourney/Sora. OBLIGATORIO combinar en un bloque orgánico y rico: [Paleta del Universo] + [Facial, Ropa y Complexiometría del Personaje] + [Texturas y Atmósfera del Escenario/Época]. Detalla la iluminación (volumétrica, sombras), encuadre, textura de piel y ropa, lentes y foco.
-- **Movimiento de Cámara (INGLÉS):** Instrucción técnica (ej: fast tracking shot, aggressive whip pan to right, handheld shaky cam).
-- **Voz en Off / Locución:** El diálogo exacto a inyectar en ElevenLabs. Si habla un personaje, EMPÁPALE de su personalidad, acérucale usando sus muletillas dadas, y que la forma sintáctica de este texto respire el ADN de su trasfondo.
+- **Acción y Contexto:** Qué pasa, qué actitud tiene el personaje, dónde está (entorno coherente con el tema del vídeo), gestos y lenguaje corporal.
+- **Prompt Visual (INGLÉS):** Prompt detallado para Midjourney/Sora. Describe el entorno, iluminación, encuadre, atmósfera. NO repitas la descripción física del personaje (ya tenemos fotos).
+- **Cámara (INGLÉS):** Movimiento de cámara técnico.
+- **Locución / Voz en Off:** El diálogo exacto. DEBE incluir las muletillas y la personalidad del narrador. Que suene a ÉL/ELLA hablando de verdad.
 `;
-    if (formData.aiInstructions) userP += `\n\n[PROMPT GENERAL / DIRECCIÓN CREATIVA Y HOOK VIRAL]:\n${formData.aiInstructions}\n---> ESTE ES EL GANCHO. El vídeo DEBE girar en torno a este enfoque. Es lo que ATRAE al espectador. Fusiona el contenido factual del Guión Literario con este ángulo creativo para maximizar la retención.\n`;
-    userP += `\n\n=== GUION LITERARIO (DATOS E INVESTIGACIÓN FACTUAL) ===\n${formData.script}\n\n---> INSTRUCCIÓN FINAL: Tu Master Prompt debe FUSIONAR el Guión Literario (datos puros) con el Prompt General (ángulo viral). El resultado debe ser un guion narrado POR EL PERSONAJE SELECCIONADO, con su personalidad, muletillas y forma de hablar, que presente los datos del Guión Literario desde el ángulo del Prompt General.`;
+    if (formData.aiInstructions) userP += `\n\n[PROMPT GENERAL / DIRECCIÓN CREATIVA Y HOOK VIRAL]:\n${formData.aiInstructions}\n--> ESTE ES EL GANCHO. El vídeo gira en torno a este enfoque. Fusiona los datos factuales con este ángulo creativo.\n`;
+    userP += `\n\n=== GUION LITERARIO (DATOS E INVESTIGACIÓN) ===\n${formData.script}\n\n--> INSTRUCCIÓN FINAL: Fusiona el Guión Literario (datos) con el Prompt General (ángulo viral). El resultado es un guion narrado POR EL PERSONAJE con su personalidad y muletillas. El entorno de cada escena debe ser coherente con el TEMA del vídeo.`;
 
     try {
       let result = '';
